@@ -406,7 +406,7 @@ reboot(){
     lopNbr := 0
     if gamghwd{
         loop 10{
-            networkerror := CheckColorWithRetry(gamghwd,0.431640625,0.55625,0x3C3A93,30,10,500,false)
+            networkerror := CheckColorWithRetry(gamghwd,0.431640625,0.55625,0x3C3A93,0,10,500,false)
             if networkerror{
                 SendInput "{Space down}"
                 Sleep 100
@@ -501,16 +501,11 @@ reboot(){
     Sleep 2000
     WinActivate gamghwd               ; 激活（聚焦）
     WinMaximize gamghwd               ; 全屏
-    ;真实模式选择判断，后续移除了要删了这里
-    found := CheckColorWithRetry(gamghwd,0.0791666666666667,0.8574074074074074,0xFFFFFF,10, 300,2000,false)
-    if found{
-        ToolTip "进入主页面，开始检测是否到选人界面"
-        SendInput "{Space down}"
-        Sleep 100
-        SendInput "{Space up}"
         ;进入主页面
         ;检测是否到选人界面
         advertisement := true
+        Sleep 30000
+        ToolTip "开始检测是否到选人界面"
         foundol := CheckColorWithRetry(gamghwd,0.50234375,0.9361,0x136AFF,20, 60,1000,false)
         found2 :=  CheckColorWithRetry(gamghwd,0.498046875,0.250694,0x136AFF,20, 30,1000,false)
         loop 30{
@@ -535,11 +530,7 @@ reboot(){
         if !advertisement {
             goto re
         }
-    }else{
-        Sleep 10000
-        goto re
     }
-}
 ;==================================
 
 ;主要函数
