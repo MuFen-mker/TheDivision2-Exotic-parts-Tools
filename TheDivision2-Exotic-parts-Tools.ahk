@@ -27,6 +27,8 @@ global NetMethod := NET_FIREWALL
 global iterationCount := 0
 global numberOfErrors := 0
 global netError := 0
+global logBuffer := []          ; 存储最近的操作记录
+global maxLogLines := 100       ; 最多保留 100 条记录（可根据需要调整）
 ; 检查文件是否存在，不存在则释放
 if !FileExist(pbPath) {
     ; 确保目标目录存在
@@ -390,6 +392,26 @@ UpdateDisplay() {
     textCtrl.Value := "循环次数:" iter "`n错误重置次数:" err "`n掉线重连次数:" net
 }
 
+LogStep(stepDesc) {
+    global logBuffer, maxLogLines
+    timestamp := FormatTime("yyyy-MM-dd HH:mm:ss")
+    logBuffer.Push(timestamp " - " stepDesc)
+    if logBuffer.Length > maxLogLines
+        logBuffer.RemoveAt(1)
+}
+
+; 保存日志到脚本目录下的 log.txt
+SaveLogToFile() {
+    global logBuffer
+    logFilePath := A_ScriptDir "\log.txt"
+    content := ""
+    for line in logBuffer
+        content .= line "`n"
+    FileOpen(logFilePath, "w").Write(content)
+    ToolTip "日志已保存到 " logFilePath
+    SetTimer () => ToolTip(), -2000
+}
+
 ;===========启动重置脚本============
 reboot(){
     ToolTip "重置进程执行中..."
@@ -400,6 +422,7 @@ reboot(){
     global netError
     global TheDivision2Path
     EnableAdapter(adapter)
+    SaveLogToFile()
     gamghwd := WinExist("ahk_exe" gamefile)
     Sleep 500
     ;检测是否掉线
@@ -556,7 +579,7 @@ RunAutomation(){
         totalRetries := 3
         found := false
         ;检测是否在主角色
-        mainObj := CheckColorWithRetry(gameHwnd,0.50234375,0.936,0x136AFF,30,150,1000,false)
+        mainObj := CheckColorWithRetry(gameHwnd,0.50234375,0.936,0x136AFF,0,150,1000,false)
         if mainObj{
             ToolTip "已检测到主角色，开始切换角色"
             SetTimer () => ToolTip(), -1500
@@ -571,7 +594,7 @@ RunAutomation(){
                 Sleep 500
 
                 ; 检测切换到新建角色
-                found := CheckColorWithRetry(gameHwnd,0.551953125,0.93125,0x136AFF,30,10,200,false)
+                found := CheckColorWithRetry(gameHwnd,0.551953125,0.93125,0x136AFF,0,10,200,false)
 
                 if found {
                     ToolTip "已检测到控件准备断网"
@@ -579,6 +602,8 @@ RunAutomation(){
                     break   ; 找到按钮，跳出外层循环
                 }
                 ; 未找到，等待一下再重试整个流程
+                ToolTip "未检测到控件，重试切换"
+                SetTimer () => ToolTip(), -2000
                 Sleep 3000
             }
 
@@ -693,7 +718,11 @@ RunAutomation(){
                                         SendInput "{Tab down}"
                                         Sleep 1800
                                         SendInput "{Tab up}"
-                                        Sleep 10
+                                        Sleep 200
+                                        SendInput "{Space down}"
+                                        Sleep 50
+                                        SendInput "{Space up}"
+                                        Sleep 100
                                         SendInput "{ESC down}"
                                         Sleep 1500
                                         SendInput "{ESC up}"
@@ -738,29 +767,35 @@ RunAutomation(){
                                 iterationCount += 1
                                 goto End
                             }else{
+                                LogStep("循环末尾未能检测到回到主页面")
                                 reboot()
                                 return
                             }
                         }else{
+                            LogStep("未能检测到聊天气泡图标（无法确认进入世界）")
                             reboot()
                             return
                         }
                     }else{
+                        LogStep("断网后切回未能检测到主角色")
                         reboot()
                         return
                     }
                 }else{
                     EnableAdapter(adapter)
                     Sleep 10000
+                    LogStep("断网后未能检测到控件")
                     reboot()
                     return
                 }
             } else {
+                LogStep("未能检测到切换到新建角色")
                 reboot()
                 return
             }
             End:
         }else{
+            LogStep("未能检测到主角色")
             reboot()
             return
         }
