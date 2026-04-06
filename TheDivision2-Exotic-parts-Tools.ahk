@@ -439,7 +439,7 @@ reboot(){
                 Sleep 100
                 SendInput "{Space up}"
                 Sleep 500
-                mainObj := CheckColorWithRetry(gamghwd,0.50234375,0.936,0x136AFF,30,150,1000,false)
+                mainObj := CheckColorWithRetry(gamghwd,0.50234375,0.936,0x136AFF,0,150,1000,false)
                 if mainObj{
                     Sleep 1000
                     Loop "已恢复，守护进程退出"
@@ -529,8 +529,8 @@ reboot(){
         advertisement := true
         Sleep 30000
         ToolTip "开始检测是否到选人界面"
-        foundol := CheckColorWithRetry(gamghwd,0.50234375,0.9361,0x136AFF,20, 60,1000,false)
-        found2 :=  CheckColorWithRetry(gamghwd,0.498046875,0.250694,0x136AFF,20, 30,1000,false)
+        foundol := CheckColorWithRetry(gamghwd,0.50234375,0.9361,0x136AFF,0, 60,1000,false)
+        found2 :=  CheckColorWithRetry(gamghwd,0.498046875,0.250694,0x136AFF,0, 30,1000,false)
         loop 30{
             if foundol{
                 Sleep 1000
@@ -621,7 +621,7 @@ RunAutomation(){
                 Sleep 1000
                 ; 断网
                 DisableAdapter(adapter)
-                foundSecond := CheckColorWithRetry(gameHwnd,0.431640625,0.55625,0x3C3A93,30,300,500,false)
+                foundSecond := CheckColorWithRetry(gameHwnd,0.431640625,0.55625,0x3C3A93,0,300,500,false)
                 if foundSecond{
                     ToolTip "已检测到控件恢复联网"
                     SetTimer () => ToolTip(), -1500
@@ -637,7 +637,7 @@ RunAutomation(){
                     SendInput "{Space up}"
                     ;检测切换主角色
                     nextEquipment:
-                    foundtheer := CheckColorWithRetry(gameHwnd,0.50234375,0.936,0x136AFF,30,150,1000,false)
+                    foundtheer := CheckColorWithRetry(gameHwnd,0.50234375,0.936,0x136AFF,0,150,1000,false)
                     if foundtheer{
                         ToolTip "已检测到控件，继续主角色拆解零件"
                         SetTimer () => ToolTip(), -1500
@@ -645,7 +645,7 @@ RunAutomation(){
                         SendInput "{Space down}"
                         Sleep 50
                         SendInput "{Space up}"
-                        foundf := CheckColorWithRetry(gameHwnd,0.029296875,0.9263889,0xFFFFFF,30,150,1000,false)
+                        foundf := CheckColorWithRetry(gameHwnd,0.029296875,0.9263889,0xFFFFFF,0,150,1000,false)
                         if foundf{
                             ToolTip "已检测到控件，确认已成功进入世界，开始移动"
                             SetTimer () => ToolTip(), -2000
@@ -762,7 +762,7 @@ RunAutomation(){
                             ToolTip "准备开始下一次循环"
                             SetTimer () => ToolTip(), -1500
                             ;确认回到主界面
-                            foundtheer := CheckColorWithRetry(gameHwnd,0.50234375,0.936,0x136AFF,30, 150,1000,false)
+                            foundtheer := CheckColorWithRetry(gameHwnd,0.50234375,0.936,0x136AFF,0, 150,1000,false)
                             if foundtheer{
                                 iterationCount += 1
                                 goto End
