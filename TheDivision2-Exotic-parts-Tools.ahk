@@ -9,7 +9,7 @@ if !A_IsAdmin {
 
 ;=======全局变量=========
 ;EDRSilencer路径
-global windowstite := "TheDivision2-Exotic-parts-Tools-1.0.4"
+global windowstite := "TheDivision2-Exotic-parts-Tools-1.0.5"
 global pbPath := A_ScriptDir "\EDRSilencer\EDRSilencer.exe"
 global stopLoop := false
 global TheDivision2Path := IniRead(A_ScriptDir "\config.ini", "Game", "TheDivision2Path", "")
