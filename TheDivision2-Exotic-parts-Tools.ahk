@@ -28,7 +28,7 @@ global iterationCount := 0
 global numberOfErrors := 0
 global netError := 0
 global logBuffer := []          ; 存储最近的操作记录
-global maxLogLines := 100       ; 最多保留 100 条记录（可根据需要调整）
+global maxLogLines := 100       ; 最多保留 100 条记录
 ; 检查文件是否存在，不存在则释放
 if !FileExist(pbPath) {
     ; 确保目标目录存在
