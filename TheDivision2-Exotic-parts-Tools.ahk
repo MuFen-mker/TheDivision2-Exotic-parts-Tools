@@ -8,8 +8,9 @@ if !A_IsAdmin {
 }
 
 ;=======全局变量=========
+global configFile := A_ScriptDir "\config.ini"
 ;EDRSilencer路径
-global windowstite := "TheDivision2-Exotic-parts-Tools-1.0.5"
+global windowstite := "TheDivision2-Exotic-parts-Tools-1.0.6"
 global pbPath := A_ScriptDir "\EDRSilencer\EDRSilencer.exe"
 global stopLoop := false
 global TheDivision2Path := IniRead(A_ScriptDir "\config.ini", "Game", "TheDivision2Path", "")
@@ -21,7 +22,6 @@ global gamefile := fileName
 global NET_FIREWALL := 1      ; 防火墙规则
 global NET_ADAPTER := 2       ; 禁用网卡
 global NET_PROXYBRIDGE := 3   ; EDRSilencer
-global configFile := A_ScriptDir "\config.ini"
 global NetMethod := NET_FIREWALL
 ;运行状态显示
 global iterationCount := 0
@@ -29,6 +29,19 @@ global numberOfErrors := 0
 global netError := 0
 global logBuffer := []          ; 存储最近的操作记录
 global maxLogLines := 100       ; 最多保留 100 条记录
+;抓点参数定义
+;x坐标百分比小数，y坐标百分比小数，颜色值，容差，重试次数，重试间隔时间ms,调试模式
+global Thefirstcharacter := [0.50234375,0.9361,0x136AFF,5,150,1000,false] ;选中拆零件的角色
+global Thefourthcharacter := [0.551953125,0.93125,0x136AFF,5,10,200,false] ;选中第四个角色
+global NDPW := [0.431640625,0.55625,0x3C3A93,20,300,500,false] ;断网提示窗口
+global Bubbleicon := [0.0300781250,0.9277777778,0xFFFFFF,5,150,1000,false] ;气泡图标
+global Storagebox := [0.725390625,0.240278,0x000000,0,5,500,false] ;储藏箱
+global mailbox := [0.68125,0.490278,0x000000,5, 30,500,false] ;信箱
+global advertisement := [0.498046875,0.250694,0x136AFF,5, 30,1000,false] ;育碧广告
+;抓取工具变量
+global grabWaiting := false
+global grabWaiting, grabTargetX, grabTargetY, grabTargetColor
+global grabTargetIdx := 0
 ; 检查文件是否存在，不存在则释放
 if !FileExist(pbPath) {
     ; 确保目标目录存在
@@ -48,6 +61,66 @@ if !FileExist(pbPath){
     MsgBox "程序异常退出,原因:`nEDRSilencer 未找到,请确认脚本目录下EDRSilencer/EDRSilencer.exe是否存在"
     ExitApp
 }
+
+; ========== 抓点参数持久化 ==========
+WriteArrayToIni(section, arr) {
+    global configFile
+    IniWrite arr[1], configFile, section, "percentX"
+    IniWrite arr[2], configFile, section, "percentY"
+    IniWrite Format("0x{:06X}", arr[3]), configFile, section, "color"
+    IniWrite arr[4], configFile, section, "variation"
+    IniWrite arr[5], configFile, section, "maxRetries"
+    IniWrite arr[6], configFile, section, "retryDelay"
+    IniWrite arr[7] ? "true" : "false", configFile, section, "debug"
+}
+LoadOrCreateParams() {
+    global configFile
+    global Thefirstcharacter, Thefourthcharacter, NDPW, Bubbleicon, Storagebox, mailbox, advertisement
+
+    ; 直接存储数组对象
+    arrays := Map(
+        "Thefirstcharacter", Thefirstcharacter,
+        "Thefourthcharacter", Thefourthcharacter,
+        "NDPW", NDPW,
+        "Bubbleicon", Bubbleicon,
+        "Storagebox", Storagebox,
+        "mailbox", mailbox,
+        "advertisement", advertisement
+    )
+
+    if !FileExist(configFile) {
+        for section, arr in arrays
+            WriteArrayToIni(section, arr)
+        return
+    }
+
+    for section, arr in arrays {
+        ; 检查该 section 的所有键是否存在，缺失则补充完整
+        missing := false
+        for _, key in ["percentX", "percentY", "color", "variation", "maxRetries", "retryDelay", "debug"] {
+            if IniRead(configFile, section, key, "") == "" {
+                missing := true
+                break
+            }
+        }
+        if missing
+            WriteArrayToIni(section, arr)
+
+        ; 读取并覆盖数组
+        arr[1] := IniRead(configFile, section, "percentX", arr[1])
+        arr[2] := IniRead(configFile, section, "percentY", arr[2])
+        colorStr := IniRead(configFile, section, "color", Format("{:#X}", arr[3]))
+        arr[3] := Integer(colorStr)
+        arr[4] := IniRead(configFile, section, "variation", arr[4])
+        arr[5] := IniRead(configFile, section, "maxRetries", arr[5])
+        arr[6] := IniRead(configFile, section, "retryDelay", arr[6])
+        debugStr := IniRead(configFile, section, "debug", arr[7] ? "true" : "false")
+        arr[7] := (debugStr = "true")
+    }
+}
+
+; 调用加载函数（放在全局数组定义之后）
+LoadOrCreateParams()
 
 ; ========== 获取网卡列表 ==========
 GetNetworkAdapters() {
@@ -134,23 +207,142 @@ global TheDivision2Path, NetworkAdapter   ; 主脚本使用的全局变量
 mainGui := Gui()
 mainGui.Title := windowstite
 mainGui.SetFont("s10")
-; ========== 说明文本 ==========
-mainGui.Add("Text", "x10 y260 w480 h30", "网线和WIFI使用其中一个，保存后F10运行，F12强制停止程序")
 ; 游戏路径区域
 mainGui.Add("Text", "x10 y10 w300 h30", "请选择《全境封锁2》的主程序路径：")
 editPath := mainGui.Add("Edit", "x10 y50 w400 h25 ReadOnly")
 btnBrowse := mainGui.Add("Button", "x420 y49 w80 h27", "浏览")
 
 ; 网卡选择区域
-mainGui.Add("Text", "x10 y110 w300 h30", "选择当前连接的网络适配器：")
-comboAdapter := mainGui.Add("ComboBox", "x10 y150 w300 h200 Choose1")
-btnRefresh := mainGui.Add("Button", "x320 y148 w80 h27", "刷新")
+mainGui.Add("Text", "x10 y90 w300 h30", "选择当前连接的网络适配器：")
+comboAdapter := mainGui.Add("ComboBox", "x10 y120 w300 h200 Choose1")
+btnRefresh := mainGui.Add("Button", "x320 y120 w80 h27", "刷新")
+; ========== 说明文本 ==========
+mainGui.Add("Text", "x10 y160 w480 h30", "网线和WIFI使用其中一个，保存后F10运行，F12强制停止程序")
+
+mainGui.Add("Text", "x10 y190 w300 h30", "选择断网方式：")
+comboNetMethod := mainGui.Add("ComboBox", "x10 y210 w400 h200 Choose1", ["防火墙规则（裸连网络稳定，响应快）", "禁用网卡（暴力断网，需选择网络适配器）", "EDRSilencer（WFP过滤，可使用加速器）"])
+
+btnEditParams  := mainGui.Add("Button", "x10 y240 w100 h30", "自定义抓点参数")
+btnEditParams.OnEvent("Click", OpenParamEditor)
+
+; 抓点函数：设置抓取目标控件
+SetGrabTarget(idx, editX, editY, editColor) {
+    global grabWaiting, grabTargetIdx, grabTargetX, grabTargetY, grabTargetColor
+    grabTargetIdx := idx
+    grabTargetX := editX
+    grabTargetY := editY
+    grabTargetColor := editColor
+    grabWaiting := true
+    ToolTip "请按 Alt+F1 抓取 (行 " idx ")"
+    SetTimer () => ToolTip(), -3000
+}
+
+; ========== 参数编辑窗口 ==========
+; 生成抓取按钮的回调函数
+MakeGrabHandler(idx, editX, editY, editColor) {
+    return (GuiCtrl, Info) => SetGrabTarget(idx, editX, editY, editColor)
+}
+OpenParamEditor(*) {
+    global configFile
+    global Thefirstcharacter, Thefourthcharacter, NDPW, Bubbleicon, Storagebox, mailbox, advertisement
+
+    arrays := [
+        {name: "拆零件角色的选中UI", arr: Thefirstcharacter, desc: "选中第一个角色"},
+        {name: "第四个角色的选中UI", arr: Thefourthcharacter, desc: "选中第四个角色"},
+        {name: "掉线提示窗口", arr: NDPW, desc: "断网提示窗口"},
+        {name: "聊天气泡图标", arr: Bubbleicon, desc: "气泡图标"},
+        {name: "进入储藏箱的UI", arr: Storagebox, desc: "储藏箱"},
+        {name: "切换到信箱的UI", arr: mailbox, desc: "信箱"},
+        {name: "育碧广告", arr: advertisement, desc: "育碧广告"}
+    ]
+
+    paramGui := Gui()
+    paramGui.Title := "自定义抓点参数"
+    paramGui.SetFont("s10")
+
+    controls := []
+
+    ; 表头
+    paramGui.Add("Text", "x10 y10 w150 h30", "参数点位")
+    paramGui.Add("Text", "x170 y10 w100 h30", "X%")
+    paramGui.Add("Text", "x280 y10 w100 h30", "Y%")
+    paramGui.Add("Text", "x390 y10 w100 h30", "颜色")
+    paramGui.Add("Text", "x500 y10 w80 h30", "容差")
+    paramGui.Add("Text", "x590 y10 w90 h30", "重试次数")
+    paramGui.Add("Text", "x690 y10 w90 h30", "重试间隔")
+    paramGui.Add("Text", "x790 y10 w90 h30", "调试模式")
+    paramGui.Add("Text", "x890 y10 w60 h30", "抓取")
+
+    y := 50
+    rowHeight := 45
+
+    for idx, item in arrays {
+        
+        paramGui.Add("Text", "x10 y" y " w150 h" rowHeight, item.name)
+        editX := paramGui.Add("Edit", "x170 y" y " w100 h" rowHeight, Round(item.arr[1], 10))
+        editY := paramGui.Add("Edit", "x280 y" y " w100 h" rowHeight, Round(item.arr[2], 10))
+        colorRaw := IniRead(configFile, item.name, "color", Format("0x{:06X}", item.arr[3]))
+        editColor := paramGui.Add("Edit", "x390 y" y " w100 h" rowHeight, colorRaw)
+        editVar := paramGui.Add("Edit", "x500 y" y " w80 h" rowHeight, item.arr[4])
+        editRetries := paramGui.Add("Edit", "x590 y" y " w90 h" rowHeight, item.arr[5])
+        editDelay := paramGui.Add("Edit", "x690 y" y " w90 h" rowHeight, item.arr[6])
+        cbDebug := paramGui.Add("ComboBox", "x790 y" y " w90 h" rowHeight, ["启用", "禁用"])
+        cbDebug.Choose(item.arr[7] ? 1 : 2)
+        ; 抓取按钮
+        btnGrab := paramGui.Add("Button", "x890 y" y " w60 h" rowHeight, "抓")
+        btnGrab.OnEvent("Click", MakeGrabHandler(idx, editX, editY, editColor))
+
+        controls.Push({arr: item.arr, ctrls: [editX, editY, editColor, editVar, editRetries, editDelay, cbDebug]})
+        y += rowHeight
+        
+    }
+
+    btnSave := paramGui.Add("Button", "x10 y" y+10 " w160 h40", "保存并退出")
+    btnSave.OnEvent("Click", (*) => SaveParamsAndClose(paramGui, controls))
+
+    paramGui.OnEvent("Close", (*) => SaveParamsAndClose(paramGui, controls))
+    paramGui.Show("w980 h" (y+80))
+}
+; 保存参数并关闭窗口
+SaveParamsAndClose(gui, controls) {
+    global configFile, grabWaiting
+    grabWaiting := false
+    ; 更新数组值
+    for item in controls {
+        arr := item.arr
+        ctrls := item.ctrls
+        ; 配置文件中的颜色需转换为数字，其他为数值
+        arr[1] := Float(ctrls[1].Value)
+        arr[2] := Float(ctrls[2].Value)
+        colorStr := ctrls[3].Value
+        ; 确保颜色值以0x开头
+        if !RegExMatch(colorStr, "^0x")
+            colorStr := "0x" colorStr
+        arr[3] := Integer(colorStr)
+        arr[4] := Integer(ctrls[4].Value)
+        arr[5] := Integer(ctrls[5].Value)
+        arr[6] := Integer(ctrls[6].Value)
+        arr[7] := (ctrls[7].Text = "启用")
+    }
+    WriteAllParamsToIni()
+    LoadOrCreateParams()
+
+    gui.Destroy()
+}
+WriteAllParamsToIni() {
+    global configFile
+    global Thefirstcharacter, Thefourthcharacter, NDPW, Bubbleicon, Storagebox, mailbox, advertisement
+    WriteArrayToIni("Thefirstcharacter", Thefirstcharacter)
+    WriteArrayToIni("Thefourthcharacter", Thefourthcharacter)
+    WriteArrayToIni("NDPW", NDPW)
+    WriteArrayToIni("Bubbleicon", Bubbleicon)
+    WriteArrayToIni("Storagebox", Storagebox)
+    WriteArrayToIni("mailbox", mailbox)
+    WriteArrayToIni("advertisement", advertisement)
+}
 
 ; 关闭按钮
-btnCancel := mainGui.Add("Button", "x10 y200 w80 h30", "保存并关闭窗口")
-
-mainGui.Add("Text", "x10 y280 w300 h30", "选择断网方式：")
-comboNetMethod := mainGui.Add("ComboBox", "x10 y310 w400 h200 Choose1", ["防火墙规则（裸连网络稳定，响应快）", "禁用网卡（暴力断网，需选择网络适配器）", "EDRSilencer（WFP过滤，可使用加速器）"])
+btnCancel := mainGui.Add("Button", "x10 y300 w200 h40", "保存并关闭窗口")
 
 ; 加载已保存的选项，确保是有效整数
 savedMethod := IniRead(configFile, "Settings", "NetMethod", NET_FIREWALL)
@@ -421,15 +613,19 @@ reboot(){
     global numberOfErrors
     global netError
     global TheDivision2Path
+    ;==== 导入取色参数 ====
+    global Thefirstcharacter
+    global advertisement
+    global NDPW
     EnableAdapter(adapter)
     SaveLogToFile()
-    gamghwd := WinExist("ahk_exe" gamefile)
+    gamghwd := WinExist("ahk_exe " gamefile)
     Sleep 500
     ;检测是否掉线
     lopNbr := 0
     if gamghwd{
         loop 10{
-            networkerror := CheckColorWithRetry(gamghwd,0.431640625,0.55625,0x3C3A93,20,10,500,false)
+            networkerror := CheckColorWithRetry(gamghwd,NDPW[1],NDPW[2],NDPW[3],NDPW[4],10,500,NDPW[7])
             if networkerror{
                 SendInput "{Space down}"
                 Sleep 100
@@ -439,10 +635,10 @@ reboot(){
                 Sleep 100
                 SendInput "{Space up}"
                 Sleep 500
-                mainObj := CheckColorWithRetry(gamghwd,0.50234375,0.936,0x136AFF,5,150,1000,false)
+                mainObj := CheckColorWithRetry(gamghwd,Thefirstcharacter[1],Thefirstcharacter[2],Thefirstcharacter[3],Thefirstcharacter[4],Thefirstcharacter[5],Thefirstcharacter[6],Thefirstcharacter[7])
                 if mainObj{
                     Sleep 1000
-                    Loop "已恢复，守护进程退出"
+                    ToolTip "已恢复，守护进程退出"
                     SetTimer () => ToolTip(), -1500
                     netError += 1
                     RunAutomation()
@@ -462,7 +658,7 @@ reboot(){
     }
     Sleep 5000
     re:
-    if WinExist("ahk_exe" gamefile) {
+    if WinExist("ahk_exe " gamefile) {
         ToolTip "游戏窗口存在,杀死游戏进程"
         SetTimer () => ToolTip(), -1500
         RunWait 'taskkill /f /im ' gamefile, , "Hide"
@@ -507,7 +703,7 @@ reboot(){
     autto := 0
 
     loop 60{
-    gamghwd := WinExist("ahk_exe" gamefile)
+    gamghwd := WinExist("ahk_exe " gamefile)
         if gamghwd {
         ToolTip "已捕获游戏窗口"
         SetTimer () => ToolTip(), -2000
@@ -526,11 +722,11 @@ reboot(){
     WinMaximize gamghwd               ; 全屏
         ;进入主页面
         ;检测是否到选人界面
-        advertisement := true
+        adFlag := true
         Sleep 30000
         ToolTip "开始检测是否到选人界面"
-        foundol := CheckColorWithRetry(gamghwd,0.50234375,0.9361,0x136AFF,5, 60,1000,false)
-        found2 :=  CheckColorWithRetry(gamghwd,0.498046875,0.250694,0x136AFF,5, 30,1000,false)
+        foundol := CheckColorWithRetry(gamghwd,Thefirstcharacter[1],Thefirstcharacter[2],Thefirstcharacter[3],Thefirstcharacter[4],60,1000,Thefirstcharacter[7])
+        found2 :=  CheckColorWithRetry(gamghwd,advertisement[1],advertisement[2],advertisement[3],advertisement[4],advertisement[5],advertisement[6],advertisement[7])
         loop 30{
             if foundol{
                 Sleep 1000
@@ -546,11 +742,11 @@ reboot(){
                     SendInput "{Space up}"
                     Sleep 500
                 }else{
-                    advertisement := false
+                    adFlag := false
                 }
             }
         }
-        if !advertisement {
+        if !adFlag {
             goto re
         }
     }
@@ -566,6 +762,14 @@ RunAutomation(){
     global adapter
     global gamefile
     global iterationCount
+
+    ;========导入颜色参数=========
+    global Thefirstcharacter
+    global Thefourthcharacter
+    global NDPW
+    global Bubbleicon
+    global Storagebox
+    global mailbox
     gameHwnd := WinExist("ahk_exe " gamefile)
     Sleep 500
     ; 获取游戏窗口句柄
@@ -579,7 +783,7 @@ RunAutomation(){
         totalRetries := 3
         found := false
         ;检测是否在主角色
-        mainObj := CheckColorWithRetry(gameHwnd,0.50234375,0.936,0x136AFF,5,150,1000,false)
+        mainObj := CheckColorWithRetry(gameHwnd,Thefirstcharacter[1],Thefirstcharacter[2],Thefirstcharacter[3],Thefirstcharacter[4],Thefirstcharacter[5],Thefirstcharacter[6],Thefirstcharacter[7])
         if mainObj{
             ToolTip "已检测到主角色，开始切换角色"
             SetTimer () => ToolTip(), -1500
@@ -594,7 +798,7 @@ RunAutomation(){
                 Sleep 500
 
                 ; 检测切换到新建角色
-                found := CheckColorWithRetry(gameHwnd,0.551953125,0.93125,0x136AFF,5,10,200,false)
+                found := CheckColorWithRetry(gameHwnd,Thefourthcharacter[1],Thefourthcharacter[2],Thefourthcharacter[3],Thefourthcharacter[4],Thefourthcharacter[5],Thefourthcharacter[6],Thefourthcharacter[7])
 
                 if found {
                     ToolTip "已检测到控件准备断网"
@@ -621,7 +825,7 @@ RunAutomation(){
                 Sleep 1000
                 ; 断网
                 DisableAdapter(adapter)
-                foundSecond := CheckColorWithRetry(gameHwnd,0.431640625,0.55625,0x3C3A93,20,300,500,false)
+                foundSecond := CheckColorWithRetry(gameHwnd,NDPW[1],NDPW[2],NDPW[3],NDPW[4],NDPW[5],NDPW[6],NDPW[7])
                 if foundSecond{
                     ToolTip "已检测到控件恢复联网"
                     SetTimer () => ToolTip(), -1500
@@ -637,7 +841,7 @@ RunAutomation(){
                     SendInput "{Space up}"
                     ;检测切换主角色
                     nextEquipment:
-                    foundtheer := CheckColorWithRetry(gameHwnd,0.50234375,0.936,0x136AFF,5,150,1000,false)
+                    foundtheer := CheckColorWithRetry(gameHwnd,Thefirstcharacter[1],Thefirstcharacter[2],Thefirstcharacter[3],Thefirstcharacter[4],Thefirstcharacter[5],Thefirstcharacter[6],Thefirstcharacter[7])
                     if foundtheer{
                         ToolTip "已检测到控件，继续主角色拆解零件"
                         SetTimer () => ToolTip(), -1500
@@ -645,7 +849,7 @@ RunAutomation(){
                         SendInput "{Space down}"
                         Sleep 50
                         SendInput "{Space up}"
-                        foundf := CheckColorWithRetry(gameHwnd,0.029296875,0.9263889,0xFFFFFF,5,150,1000,false)
+                        foundf := CheckColorWithRetry(gameHwnd,Bubbleicon[1],Bubbleicon[2],Bubbleicon[3],Bubbleicon[4],Bubbleicon[5],Bubbleicon[6],Bubbleicon[7])
                         if foundf{
                             ToolTip "已检测到控件，确认已成功进入世界，开始移动"
                             SetTimer () => ToolTip(), -2000
@@ -661,8 +865,9 @@ RunAutomation(){
                             Send "{F up}"
                             ;进入装备页面
                             Sleep 500
-                            equipment := CheckColorWithRetry(gameHwnd,0.725390625,0.240278,0x000000,0,5,500,false)
-                            equipmentnd := CheckColorWithRetry(gameHwnd,0.029296875,0.9263889,0xFFFFFF,0,5,100,false)
+                            equipment := CheckColorWithRetry(gameHwnd,Storagebox[1],Storagebox[2],Storagebox[3],Storagebox[4],Storagebox[5],Storagebox[6],Storagebox[7])
+                            equipmentnd := CheckColorWithRetry(gameHwnd,Bubbleicon[1],Bubbleicon[2],Bubbleicon[3],0,5,100,Bubbleicon[7])
+                            ;这里同时检测开启了箱子并且气泡不存在，防止误识别
                             if equipment && !equipmentnd{
                                 ToolTip "确认进入装备页面"
                                 SetTimer () => ToolTip(), -2000
@@ -670,7 +875,7 @@ RunAutomation(){
                                 Sleep 50
                                 SendInput "{E up}"
                                 Sleep 100
-                                equipment2 := CheckColorWithRetry(gameHwnd,0.68125,0.490278,0x000000,5, 30,500,false)
+                                equipment2 := CheckColorWithRetry(gameHwnd,mailbox[1],mailbox[2],mailbox[3],mailbox[4],mailbox[5],mailbox[6],mailbox[7])
                                 if equipment2 {
                                     ToolTip "开始收取武器"
                                     SetTimer () => ToolTip(), -2000
@@ -762,7 +967,7 @@ RunAutomation(){
                             ToolTip "准备开始下一次循环"
                             SetTimer () => ToolTip(), -1500
                             ;确认回到主界面
-                            foundtheer := CheckColorWithRetry(gameHwnd,0.50234375,0.936,0x136AFF,5, 150,1000,false)
+                            foundtheer := CheckColorWithRetry(gameHwnd,Thefirstcharacter[1],Thefirstcharacter[2],Thefirstcharacter[3],Thefirstcharacter[4],Thefirstcharacter[5],Thefirstcharacter[6],Thefirstcharacter[7])
                             if foundtheer{
                                 iterationCount += 1
                                 goto End
@@ -819,3 +1024,42 @@ F12:: {
 }
 F10:: RunAutomation()
 F9:: reboot()
+;抓点热键
+!F1:: {
+    global grabWaiting, grabTargetX, grabTargetY, grabTargetColor, gamefile
+    CheckAndClose()
+    if !grabWaiting
+        return
+    ; 获取游戏窗口句柄
+    hwnd := WinExist("ahk_exe " gamefile)
+    if !hwnd {
+        MsgBox "未找到游戏窗口，请确保游戏正在运行"
+        grabWaiting := false
+        return
+    }
+    ; 获取鼠标位置
+    MouseGetPos(&mouseX, &mouseY)
+    ; 获取窗口位置和尺寸
+    WinGetPos(&winX, &winY, &winW, &winH, hwnd)
+    if (mouseX < winX || mouseX > winX+winW || mouseY < winY || mouseY > winY+winH) {
+        MsgBox "鼠标不在游戏窗口内"
+        grabWaiting := false
+        return
+    }
+    ; 计算相对坐标
+    relX := Round((mouseX - winX) / winW, 10)
+    relY := Round((mouseY - winY) / winH, 10)
+    ; 获取颜色
+    hDC := DllCall("GetDC", "Ptr", 0, "Ptr")
+    color := DllCall("GetPixel", "Ptr", hDC, "Int", mouseX, "Int", mouseY, "UInt")
+    DllCall("ReleaseDC", "Ptr", 0, "Ptr", hDC)
+    hexColor := Format("0x{:06X}", color)
+    ; 填充控件（使用存储的控件引用）
+    if grabTargetX && grabTargetY && grabTargetColor {
+        grabTargetX.Value := relX
+        grabTargetY.Value := relY
+        grabTargetColor.Value := hexColor
+        MsgBox "抓取成功！行 " grabTargetIdx "`nX%: " relX "`nY%: " relY "`n颜色: " hexColor
+    }
+    grabWaiting := false
+}
