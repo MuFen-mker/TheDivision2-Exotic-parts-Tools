@@ -1,6 +1,7 @@
 #Requires AutoHotkey v2.0
 #UseHook
 #SingleInstance Force
+Persistent
 
 if !A_IsAdmin {
     Run '*RunAs "' A_AhkPath '" "' A_ScriptFullPath '"'
@@ -22,7 +23,7 @@ global gamefile := fileName
 global NET_FIREWALL := 1      ; 防火墙规则
 global NET_ADAPTER := 2       ; 禁用网卡
 global NET_PROXYBRIDGE := 3   ; EDRSilencer
-global NetMethod := NET_FIREWALL
+global NetMethod := NET_PROXYBRIDGE
 ;运行状态显示
 global iterationCount := 0
 global numberOfErrors := 0
@@ -40,8 +41,10 @@ global mailbox := [0.68125,0.490278,0x000000,5, 30,500,false] ;信箱
 global advertisement := [0.498046875,0.250694,0x136AFF,5, 30,1000,false] ;育碧广告
 ;抓取工具变量
 global grabWaiting := false
-global grabWaiting, grabTargetX, grabTargetY, grabTargetColor
+global grabTargetX, grabTargetY, grabTargetColor
 global grabTargetIdx := 0
+global windowedMode := false   ; 窗口化模式，默认关闭
+global useCustomParams := false   ; 是否使用自定义抓点参数
 ; 检查文件是否存在，不存在则释放
 if !FileExist(pbPath) {
     ; 确保目标目录存在
@@ -119,8 +122,80 @@ LoadOrCreateParams() {
     }
 }
 
-; 调用加载函数（放在全局数组定义之后）
-LoadOrCreateParams()
+;======== 通过注册表搜索游戏路径 ======== 
+AutoFindDivision2Fast() {
+    ; ===== 1. Ubisoft 注册表 =====
+    try {
+        installPath := RegRead("HKEY_LOCAL_MACHINE\SOFTWARE\Ubisoft\Launcher\Installs\4932", "InstallDir")
+        if installPath {
+            exePath := installPath "\TheDivision2.exe"
+            if FileExist(exePath)
+                return NormalizePath(exePath)
+        }
+    }
+    try {
+        installPath := RegRead("HKEY_LOCAL_MACHINE\SOFTWARE\WOW6432Node\Ubisoft\Launcher\Installs\4932", "InstallDir")
+        if installPath {
+            exePath := installPath "\TheDivision2.exe"
+            if FileExist(exePath)
+                return NormalizePath(exePath)
+        }
+    }
+
+    ; ===== 2. Steam =====
+    try {
+        steamPath := RegRead("HKEY_LOCAL_MACHINE\SOFTWARE\WOW6432Node\Valve\Steam", "InstallPath")
+        if steamPath {
+            libFile := steamPath "\steamapps\libraryfolders.vdf"
+            if FileExist(libFile) {
+                libs := ParseSteamLibraries(libFile)
+                for lib in libs {
+                    testPath := lib "\steamapps\common\Tom Clancy's The Division 2\TheDivision2.exe"
+                    if FileExist(testPath)
+                        return testPath
+                }
+            }
+        }
+    }
+
+    ; ===== 3. 常见路径 =====
+    commonPaths := [
+        "C:\Program Files\Ubisoft\Ubisoft Game Launcher\games\Tom Clancy's The Division 2\TheDivision2.exe",
+        "D:\Ubisoft\games\Tom Clancy's The Division 2\TheDivision2.exe",
+        "E:\Ubisoft\games\Tom Clancy's The Division 2\TheDivision2.exe"
+    ]
+    for p in commonPaths {
+        if FileExist(p)
+            return p
+    }
+
+    ; 未找到则返回空
+    return ""
+}
+
+NormalizePath(path) {
+    ; 统一斜杠
+    path := StrReplace(path, "/", "\")
+
+    ; 去掉重复反斜杠（除了盘符后的）
+    while InStr(path, "\\")
+        path := StrReplace(path, "\\", "\")
+
+    return path
+}
+
+ParseSteamLibraries(vdfPath) {
+    libs := []
+    content := FileRead(vdfPath)
+
+    for line in StrSplit(content, "`n") {
+        if RegExMatch(line, '"path"\s*"(.+?)"', &m) {
+            libs.Push(StrReplace(m[1], "\\", "\"))
+        }
+    }
+
+    return libs
+}
 
 ; ========== 获取网卡列表 ==========
 GetNetworkAdapters() {
@@ -164,32 +239,139 @@ RefreshAdapterList() {
     }
 }
 
-; 检查并关闭窗口（如果配置有效）
-CheckAndClose() {
-    global editPath, comboAdapter, configFile, TheDivision2Path, NetworkAdapter,gamefile,NetMethod
-    global comboNetMethod
+ApplyCustomParamsSetting() {
+    global chkUseCustom, windowedMode
+    global Thefirstcharacter, Thefourthcharacter, NDPW, Bubbleicon, Storagebox, mailbox, advertisement
+
+    if chkUseCustom.Value {
+        ; 用户勾选了“使用自定义抓点参数”，从配置文件加载
+        LoadOrCreateParams()
+    } else {
+        ; 未勾选自定义参数，根据窗口化模式选择不同的默认参数
+        if windowedMode {
+            ; ========== 窗口化模式下的默认参数==========
+            Thefirstcharacter := [0.501953125, 0.82942708333333337,0x136AFF,5,150,1000,false]
+            Thefourthcharacter := [0.546875, 0.82942708333333337,0x136AFF,5,10,200,false]
+            NDPW := [0.572265625, 0.54036458333333337,0x3C3A95,20,300,500,false]
+            Bubbleicon := [0.0458984375, 0.92838541666666663,0xFFFFFF,5,150,1000,false]
+            Storagebox := [0.640625, 0.24479166666666666,0x000000,5,10,500,false]
+            mailbox := [0.5859375, 0.46354166666666669,0x000000,5,30,500,false]
+            advertisement := [0.4970703125, 0.3125,0x136AFF,5,30,1000,false]
+        } else {
+            ; ========== 全屏模式下的默认参数（原有值）==========
+            Thefirstcharacter := [0.50234375,0.9361,0x136AFF,5,150,1000,false]
+            Thefourthcharacter := [0.551953125,0.93125,0x136AFF,5,10,200,false]
+            NDPW := [0.431640625,0.55625,0x3C3A93,20,300,500,false]
+            Bubbleicon := [0.0300781250,0.9277777778,0xFFFFFF,5,150,1000,false]
+            Storagebox := [0.725390625,0.240278,0x000000,0,5,500,false]
+            mailbox := [0.68125,0.490278,0x000000,5,30,500,false]
+            advertisement := [0.498046875,0.250694,0x136AFF,5,30,1000,false]
+        }
+    }
+}
+ApplyRolePreset(*) {
+    global Thefirstcharacter, comboRolePreset, windowedMode
+    selected := comboRolePreset.Text
+    if (windowedMode) {
+        ; 窗口化模式下的坐标预设
+        if (selected = "第一个角色") {
+            Thefirstcharacter[1] := 0.501953125
+            Thefirstcharacter[2] := 0.82942708333333337
+        } else if (selected = "第二个角色") {
+            Thefirstcharacter[1] := 0.517578125
+            Thefirstcharacter[2] := 0.82942708333333337
+        } else if (selected = "第三个角色") {
+            Thefirstcharacter[1] := 0.533203125
+            Thefirstcharacter[2] := 0.82942708333333337
+        } else {
+            return
+        }
+    } else {
+        ; 全屏模式下的坐标预设
+        if (selected = "第一个角色") {
+            Thefirstcharacter[1] := 0.50234375
+            Thefirstcharacter[2] := 0.9361
+        } else if (selected = "第二个角色") {
+            Thefirstcharacter[1] := 0.517578125
+            Thefirstcharacter[2] := 0.9361
+        } else if (selected = "第三个角色") {
+            Thefirstcharacter[1] := 0.53398437499999996
+            Thefirstcharacter[2] := 0.9361
+        } else {
+            return
+        }
+    }
+    ToolTip "已切换到 " selected " 的抓点参数"
+    SetTimer () => ToolTip(), -1500
+}
+OnUseCustomClick(*) {
+    global chkUseCustom, configFile
+    ; 保存复选框状态到配置文件
+    IniWrite chkUseCustom.Value ? 1 : 0, configFile, "Settings", "UseCustomParams"
+    ; 立即应用设置（更新全局数组）
+    ApplyCustomParamsSetting()
+    ToolTip (chkUseCustom.Value ? "已启用自定义抓点参数" : "已禁用自定义抓点参数，使用默认值")
+    SetTimer () => ToolTip(), -1500
+}
+OnWindowedModeClick(*) {
+    global chkWindowed, windowedMode, configFile
+    windowedMode := chkWindowed.Value
+    ; 保存窗口模式状态到配置文件（可选，保持与保存按钮同步）
+    IniWrite windowedMode ? 1 : 0, configFile, "Settings", "WindowedMode"
+    ; 立即更新抓点参数数组（根据当前窗口模式和使用自定义参数标志）
+    ApplyCustomParamsSetting()
+    ToolTip (windowedMode ? "已切换到窗口化模式，抓点参数已更新" : "已切换到全屏模式，抓点参数已更新")
+    SetTimer () => ToolTip(), -2000
+    ApplyRolePreset()
+}
+
+SaveCurrentConfig() {
+    global editPath, comboAdapter, configFile, TheDivision2Path, NetworkAdapter, gamefile, NetMethod, comboNetMethod
     path := Trim(editPath.Value)
-    adapter := Trim(comboAdapter.Text)
+    ; 不再强制要求选择网卡
+    ; adapter := Trim(comboAdapter.Text)
     if path = "" {
         MsgBox "请先选择游戏路径！", "提示", 0x40
         return false
     }
-    if adapter = "" || adapter = "未检测到可用网卡" {
-        MsgBox "请先选择一个有效的网络适配器！", "提示", 0x40
-        return false
-    }
-    ; 保存配置
-    IniWrite path, configFile, "Game", "TheDivision2Path"
-    IniWrite adapter, configFile, "Network", "Adapter"
-    ; 保存断网方式
-    IniWrite comboNetMethod.Value, configFile, "Settings", "NetMethod"
+    ; 移除网卡检查
+    ; if adapter = "" || adapter = "未检测到可用网卡" {
+    ;     MsgBox "请先选择一个有效的网络适配器！", "提示", 0x40
+    ;     return false
+    ; }
+    
     ; 更新全局变量
     TheDivision2Path := path
-    NetworkAdapter := adapter
+    windowedMode := chkWindowed.Value
+    ; 如果用户没有选择网卡，NetworkAdapter 可能为空或保持原值，这里允许为空
+    NetworkAdapter := Trim(comboAdapter.Text)
+    if NetworkAdapter = "未检测到可用网卡"
+        NetworkAdapter := ""   ; 将无效值置空
     NetMethod := comboNetMethod.Value
-    SplitPath(TheDivision2Path, &fileName)  ; 提取文件名
+    SplitPath(TheDivision2Path, &fileName)
     gamefile := fileName
+
+    ; 保存配置到文件
+    IniWrite path, configFile, "Game", "TheDivision2Path"
+    IniWrite NetworkAdapter, configFile, "Network", "Adapter"
+    IniWrite comboNetMethod.Value, configFile, "Settings", "NetMethod"
+    IniWrite chkWindowed.Value ? 1 : 0, configFile, "Settings", "WindowedMode"
+    IniWrite chkUseCustom.Value ? 1 : 0, configFile, "Settings", "UseCustomParams"
+
+    ApplyCustomParamsSetting()
+
+    ToolTip "配置已保存"
+    SetTimer () => ToolTip(), -1500
     return true
+}
+
+; 检查并关闭窗口
+CheckAndClose() {
+    if SaveCurrentConfig() {
+        mainGui.Destroy()
+        return true
+    }
+    return false
 }
 
 ; 窗口关闭事件（右上角 X）
@@ -208,22 +390,36 @@ mainGui := Gui()
 mainGui.Title := windowstite
 mainGui.SetFont("s10")
 ; 游戏路径区域
-mainGui.Add("Text", "x10 y10 w300 h30", "请选择《全境封锁2》的主程序路径：")
+mainGui.Add("Text", "x10 y10 w300 h30", "请选择《全境封锁2》的主程序路径(TheDivision2.exe)：")
 editPath := mainGui.Add("Edit", "x10 y50 w400 h25 ReadOnly")
 btnBrowse := mainGui.Add("Button", "x420 y49 w80 h27", "浏览")
 
 ; 网卡选择区域
-mainGui.Add("Text", "x10 y90 w300 h30", "选择当前连接的网络适配器：")
-comboAdapter := mainGui.Add("ComboBox", "x10 y120 w300 h200 Choose1")
-btnRefresh := mainGui.Add("Button", "x320 y120 w80 h27", "刷新")
-; ========== 说明文本 ==========
-mainGui.Add("Text", "x10 y160 w480 h30", "网线和WIFI使用其中一个，保存后F10运行，F12强制停止程序")
+mainGui.Add("Text", "x10 y80 w300 h30", "选择当前连接的网络适配器：")
+comboAdapter := mainGui.Add("ComboBox", "x10 y100 w300 h200 Choose1")
+btnRefresh := mainGui.Add("Button", "x320 y98 w80 h27", "刷新")
 
-mainGui.Add("Text", "x10 y190 w300 h30", "选择断网方式：")
-comboNetMethod := mainGui.Add("ComboBox", "x10 y210 w400 h200 Choose1", ["防火墙规则（裸连网络稳定，响应快）", "禁用网卡（暴力断网，需选择网络适配器）", "EDRSilencer（WFP过滤，可使用加速器）"])
+mainGui.Add("Text", "x10 y130 w300 h30", "选择断网方式：")
+comboNetMethod := mainGui.Add("ComboBox", "x10 y150 w400 h200 Choose3", ["防火墙规则（裸连网络稳定，响应快）", "禁用网卡（暴力断网，需选择网络适配器）", "EDRSilencer（WFP过滤，可使用加速器）"])
 
-btnEditParams  := mainGui.Add("Button", "x10 y240 w100 h30", "自定义抓点参数")
+; 窗口化模式勾选框
+chkWindowed := mainGui.Add("CheckBox", "x10 y180 w120 h30", "窗口化模式`n1024 x 768")
+chkWindowed.OnEvent("Click", OnWindowedModeClick)
+mainGui.Add("Text", "x130 y183 w250 h30", "请将游戏画面设置同步修改为`n窗口化:1024 x 768")
+
+; 角色预设选择
+mainGui.Add("Text", "x10 y220 w300 h30", "角色预设：")
+comboRolePreset := mainGui.Add("ComboBox", "x10 y240 w150 h90 Choose1", ["第一个角色", "第二个角色", "第三个角色"])
+btnApplyPreset := mainGui.Add("Button", "x170 y239 w80 h20", "应用")
+btnApplyPreset.OnEvent("Click", ApplyRolePreset)
+mainGui.Add("Text", "x260 y240 w250 h30", "选择后需要点击应用更新参数`n会覆盖自定义抓点参数")
+
+chkUseCustom := mainGui.Add("CheckBox", "x10 y280 w140 h30", "使用自定义抓点参数")
+chkUseCustom.OnEvent("Click", OnUseCustomClick)
+btnEditParams  := mainGui.Add("Button", "x150 y280 w100 h30", "自定义抓点参数")
 btnEditParams.OnEvent("Click", OpenParamEditor)
+mainGui.Add("Text", "x260 y285 w250 h30", "如果你不知道这是什么`n请不要勾选和修改")
+
 
 ; 抓点函数：设置抓取目标控件
 SetGrabTarget(idx, editX, editY, editColor) {
@@ -236,13 +432,17 @@ SetGrabTarget(idx, editX, editY, editColor) {
     ToolTip "请按 Alt+F1 抓取 (行 " idx ")"
     SetTimer () => ToolTip(), -3000
 }
-
 ; ========== 参数编辑窗口 ==========
 ; 生成抓取按钮的回调函数
 MakeGrabHandler(idx, editX, editY, editColor) {
     return (GuiCtrl, Info) => SetGrabTarget(idx, editX, editY, editColor)
 }
 OpenParamEditor(*) {
+    global chkUseCustom
+    if !chkUseCustom.Value {
+        MsgBox "请先勾选“使用自定义抓点参数”后再编辑抓点参数。", "提示", 0x40
+        return
+    }
     global configFile
     global Thefirstcharacter, Thefourthcharacter, NDPW, Bubbleicon, Storagebox, mailbox, advertisement
 
@@ -297,7 +497,7 @@ OpenParamEditor(*) {
         
     }
 
-    btnSave := paramGui.Add("Button", "x10 y" y+10 " w160 h40", "保存并退出")
+    btnSave := paramGui.Add("Button", "x10 y" y+10 " w160 h40", "保存并关闭窗口")
     btnSave.OnEvent("Click", (*) => SaveParamsAndClose(paramGui, controls))
 
     paramGui.OnEvent("Close", (*) => SaveParamsAndClose(paramGui, controls))
@@ -341,29 +541,84 @@ WriteAllParamsToIni() {
     WriteArrayToIni("advertisement", advertisement)
 }
 
+; ========== 说明文本 ==========
+mainGui.Add("Text", "x10 y320 w480 h30", "网线和WIFI使用其中一个，保存后F10运行，F12强制停止程序，F5暂停并重启程序")
+
 ; 关闭按钮
-btnCancel := mainGui.Add("Button", "x10 y300 w200 h40", "保存并关闭窗口")
+btnCancel := mainGui.Add("Button", "x10 y350 w200 h40", "保存并关闭窗口")
+
+btnSaveOnly := mainGui.Add("Button", "x220 y350 w100 h40", "保存")
+btnSaveOnly.OnEvent("Click", (*) => SaveCurrentConfig())
+
 
 ; 加载已保存的选项，确保是有效整数
-savedMethod := IniRead(configFile, "Settings", "NetMethod", NET_FIREWALL)
+savedMethod := IniRead(configFile, "Settings", "NetMethod", NET_PROXYBRIDGE)
 savedMethod := savedMethod + 0   ; 转换为整数
 if (savedMethod < 1 || savedMethod > 3)
-    savedMethod := NET_FIREWALL
+    savedMethod := NET_PROXYBRIDGE
 comboNetMethod.Choose(savedMethod)
 
 ; 加载已有配置（仅用于显示）
 savedPath := IniRead(configFile, "Game", "TheDivision2Path", "")
+
+; ===== 自动检测 =====
+if (savedPath = "" || !FileExist(savedPath)) {
+    ToolTip "正在自动搜索游戏路径，请稍候..."
+
+    foundPath := AutoFindDivision2Fast()
+
+    ToolTip
+
+    if (foundPath != "") {
+        savedPath := foundPath
+        IniWrite savedPath, configFile, "Game", "TheDivision2Path"
+        MsgBox "已自动找到游戏路径：`n" savedPath
+    } else {
+        MsgBox "未自动找到游戏，请手动选择路径"
+    }
+}
+
 if savedPath
     editPath.Value := savedPath
 
 savedAdapter := IniRead(configFile, "Network", "Adapter", "")
 RefreshAdapterList()   ; 填充网卡列表
 
+; 读取窗口化模式设置
+savedWindowedMode := IniRead(configFile, "Settings", "WindowedMode", 0)
+chkWindowed.Value := savedWindowedMode
+windowedMode := savedWindowedMode
+
+useCustomParams := IniRead(configFile, "Settings", "UseCustomParams", 0)
+chkUseCustom.Value := useCustomParams
+
+ApplyCustomParamsSetting()
+
 ; 绑定事件
 btnBrowse.OnEvent("Click", BrowseFile)
 btnRefresh.OnEvent("Click", (*) => RefreshAdapterList())
 btnCancel.OnEvent("Click", (*) => CheckAndClose() && mainGui.Destroy())
 mainGui.OnEvent("Close", GuiClose)   ; 处理右上角 X
+
+; 创建悬浮窗
+FloatingWindow := Gui("+AlwaysOnTop +ToolWindow -Caption +LastFound")
+floatingHwnd := FloatingWindow.Hwnd 
+FloatingWindow.BackColor := "000000"
+WinSetTransparent(180, FloatingWindow)
+WinSetExStyle("+0x20", FloatingWindow)
+
+textCtrl := FloatingWindow.Add("Text", "cWhite x10 y10 w200 h100", "循环次数:0`n错误重置次数:0`n掉线重连次数:0")
+textCtrl.SetFont("s12")  ; 不指定字体名，使用默认
+
+; 获取屏幕工作区
+MonitorGetWorkArea(, &Left, &Top, &Right, &Bottom)
+winWidth := 220
+winHeight := 70
+xPos := 10
+yPos := 10
+
+; 显示窗口
+FloatingWindow.Show("x" xPos " y" yPos " w" winWidth " h" winHeight " NoActivate")
 
 ; 显示窗口
 mainGui.Show()
@@ -374,6 +629,8 @@ WinWaitClose windowstite
 ; ========== 窗口关闭后，从配置文件读取配置 ==========
 TheDivision2Path := IniRead(configFile, "Game", "TheDivision2Path", "")
 NetworkAdapter := IniRead(configFile, "Network", "Adapter", "")
+if (NetworkAdapter = "")
+    NetworkAdapter := "以太网"
 ; 读取断网方式，默认为防火墙规则
 NetMethod := IniRead(configFile, "Settings", "NetMethod", NET_FIREWALL)
 
@@ -389,14 +646,20 @@ NetMethod := IniRead(configFile, "Settings", "NetMethod", NET_FIREWALL)
 ; 返回：匹配返回 true，否则 false
 CheckColorWithRetry(hwnd, percentX, percentY, targetColor, variation := 20, maxRetries := 20, retryDelay := 200, debug := false) {
         ; 检查窗口句柄是否有效
+        global windowedMode
         loop maxRetries {
             if !WinExist("ahk_id " hwnd){
                 return false
             }
-        WinGetPos(&winX, &winY, &winW, &winH, hwnd)
-        ; 将百分比转换为绝对坐标
-        screenX := winW * percentX
-        screenY := winH * percentY
+        if windowedMode {
+            WinGetClientPos(&winX, &winY, &winW, &winH, hwnd)
+        } else {
+            WinGetClientPos(, , &winW, &winH, hwnd)  ; 只获取宽高，不获取位置
+            winX := 0
+            winY := 0
+        }
+        screenX := winX + winW * percentX
+        screenY := winY + winH * percentY
 
         if debug {
             ToolTip "检查颜色位置: " screenX "," screenY "`n预期: " Format("{:06X}", targetColor)
@@ -409,6 +672,7 @@ CheckColorWithRetry(hwnd, percentX, percentY, targetColor, variation := 20, maxR
         DllCall("ReleaseDC", "Ptr", 0, "Ptr", hDC)
 
         if debug {
+            Sleep 1000
             ToolTip "实际颜色: " Format("{:06X}", actualColor)
             SetTimer () => ToolTip(), -1000
         }
@@ -510,6 +774,8 @@ DisableAdapter(adapterName) {
         ToolTip "已断开网络(防火墙规则)"
         SetTimer () => ToolTip(), -2000
     } else if (NetMethod = NET_ADAPTER) {
+        if (adapterName = "")
+            adapterName := "以太网"
         ; 禁用网卡
         RunWait 'netsh interface set interface "' adapterName '" admin=disable', , "Hide"
         ToolTip "已断开网络(禁用网卡)"
@@ -543,6 +809,8 @@ EnableAdapter(adapterName) {
         RunWait 'netsh advfirewall firewall delete rule name="BlockGame_Out"', , "Hide"
         RunWait 'netsh advfirewall firewall delete rule name="BlockGame_In"', , "Hide"
     } else if (NetMethod = NET_ADAPTER) {
+        if (adapterName = "")
+            adapterName := "以太网"
         ; 启用网卡
         RunWait 'netsh interface set interface "' adapterName '" admin=enable', , "Hide"
     } else if (NetMethod = NET_PROXYBRIDGE) {
@@ -551,27 +819,6 @@ EnableAdapter(adapterName) {
     }
 }
 ;===========
-
-; 创建悬浮窗
-FloatingWindow := Gui("+AlwaysOnTop +ToolWindow -Caption +LastFound")
-FloatingWindow.BackColor := "000000"
-WinSetTransparent 180, FloatingWindow
-WinSetExStyle "+0x20", FloatingWindow
-
-; 添加多行文本控件，手动指定位置和宽度（确保足够宽）
-textCtrl := FloatingWindow.Add("Text", "cWhite x10 y10 w200 h100", "循环次数:0`n错误重置次数:0`n掉线重连次数:0")
-textCtrl.SetFont("s12", "微软雅黑")
-
-; 手动设定窗口大小（请根据实际显示效果调整）
-winWidth := 220   ; 宽度比文本宽度稍宽
-winHeight := 100   ; 高度足够显示三行文字（若下半部分不显示，请增加此值，例如 100、110）
-
-; 窗口位置（屏幕右上角，距右边缘 10 像素，距上边缘 10 像素）
-xPos := A_ScreenWidth - winWidth - 10
-yPos := 10
-
-; 显示窗口
-FloatingWindow.Show("x" xPos " y" yPos " w" winWidth " h" winHeight " NoActivate")
 
 ; 定时更新显示
 SetTimer(UpdateDisplay, 1000)
@@ -617,9 +864,11 @@ reboot(){
     global Thefirstcharacter
     global advertisement
     global NDPW
+    global floatingHwnd
     EnableAdapter(adapter)
     SaveLogToFile()
     gamghwd := WinExist("ahk_exe " gamefile)
+
     Sleep 500
     ;检测是否掉线
     lopNbr := 0
@@ -718,8 +967,9 @@ reboot(){
     }
 
     Sleep 2000
-    WinActivate gamghwd               ; 激活（聚焦）
-    WinMaximize gamghwd               ; 全屏
+    WinSetAlwaysOnTop true, gamghwd
+    WinSetAlwaysOnTop true, floatingHwnd
+    WinActivate gamghwd
         ;进入主页面
         ;检测是否到选人界面
         adFlag := true
@@ -730,7 +980,7 @@ reboot(){
         loop 30{
             if foundol{
                 Sleep 1000
-                Loop "已恢复，守护进程退出"
+                ToolTip "已恢复，守护进程退出"
                 SetTimer () => ToolTip(), -1500
                 numberOfErrors += 1
                 RunAutomation()
@@ -762,6 +1012,7 @@ RunAutomation(){
     global adapter
     global gamefile
     global iterationCount
+    global floatingHwnd
 
     ;========导入颜色参数=========
     global Thefirstcharacter
@@ -779,6 +1030,9 @@ RunAutomation(){
         return
     }
     ;===================================
+    WinSetAlwaysOnTop true, gameHwnd
+    WinSetAlwaysOnTop true, floatingHwnd
+    WinActivate gameHwnd
     while !stopLoop {
         totalRetries := 3
         found := false
@@ -793,27 +1047,25 @@ RunAutomation(){
                     SendInput "{c down}"
                     Sleep 30
                     SendInput "{c up}"
-                    Sleep 100
+                    Sleep 50
                 }
-                Sleep 500
-
                 ; 检测切换到新建角色
                 found := CheckColorWithRetry(gameHwnd,Thefourthcharacter[1],Thefourthcharacter[2],Thefourthcharacter[3],Thefourthcharacter[4],Thefourthcharacter[5],Thefourthcharacter[6],Thefourthcharacter[7])
 
                 if found {
-                    ToolTip "已检测到控件准备断网"
+                    ToolTip "已检测到控件,新建角色"
                     SetTimer () => ToolTip(), -1500
                     break   ; 找到按钮，跳出外层循环
                 }
                 ; 未找到，等待一下再重试整个流程
                 ToolTip "未检测到控件，重试切换"
                 SetTimer () => ToolTip(), -2000
-                Sleep 3000
+                Sleep 300
             }
 
             if found {
                 next:
-                Sleep 500
+                Sleep 1000
                 SendInput "{Space down}"
                 Sleep 30
                 SendInput "{Space up}"
@@ -826,6 +1078,7 @@ RunAutomation(){
                 ; 断网
                 DisableAdapter(adapter)
                 foundSecond := CheckColorWithRetry(gameHwnd,NDPW[1],NDPW[2],NDPW[3],NDPW[4],NDPW[5],NDPW[6],NDPW[7])
+                WinSetAlwaysOnTop true, floatingHwnd
                 if foundSecond{
                     ToolTip "已检测到控件恢复联网"
                     SetTimer () => ToolTip(), -1500
@@ -927,7 +1180,7 @@ RunAutomation(){
                                         SendInput "{Space down}"
                                         Sleep 50
                                         SendInput "{Space up}"
-                                        Sleep 100
+                                        Sleep 300
                                         SendInput "{ESC down}"
                                         Sleep 1500
                                         SendInput "{ESC up}"
@@ -939,6 +1192,12 @@ RunAutomation(){
                                     Sleep 100
                                 }
                             }else{
+                                if !equipmentnd{
+                                    Sleep 200
+                                    SendInput "{ESC down}"
+                                    Sleep 1500
+                                    SendInput "{ESC up}"
+                                }
                                 SendInput "{ESC down}"
                                 Sleep 50
                                 SendInput "{ESC up}"
@@ -1008,11 +1267,16 @@ RunAutomation(){
 }
 ;终止程序
 exitkill(){
-    global adapter, pbPath
+    global adapter, pbPath,gamefile
     RunWait 'netsh interface set interface "' adapter '" admin=enable', , "Hide"
     RunWait 'netsh advfirewall firewall delete rule name="BlockGame_Out"', , "Hide"
     RunWait 'netsh advfirewall firewall delete rule name="BlockGame_In"', , "Hide"
     RunWait '*RunAs "' pbPath '" unblockall', , "Hide"
+    hwnd := WinExist("ahk_exe " gamefile)
+    if !hwnd{
+        return
+    }
+    WinSetAlwaysOnTop false, hwnd
 }
 ;退出执行
 OnExit((*) => exitkill())
@@ -1027,9 +1291,10 @@ F9:: reboot()
 ;抓点热键
 !F1:: {
     global grabWaiting, grabTargetX, grabTargetY, grabTargetColor, gamefile
-    CheckAndClose()
+    SaveCurrentConfig()
     if !grabWaiting
         return
+
     ; 获取游戏窗口句柄
     hwnd := WinExist("ahk_exe " gamefile)
     if !hwnd {
@@ -1037,29 +1302,30 @@ F9:: reboot()
         grabWaiting := false
         return
     }
-    ; 获取鼠标位置
+
+    ; 获取客户区（游戏实际画面区域）的位置和大小
+    WinGetClientPos(&clientX, &clientY, &clientW, &clientH, hwnd)
+
+    ; 获取鼠标屏幕坐标
     MouseGetPos(&mouseX, &mouseY)
-    ; 获取窗口位置和尺寸
-    WinGetPos(&winX, &winY, &winW, &winH, hwnd)
-    if (mouseX < winX || mouseX > winX+winW || mouseY < winY || mouseY > winY+winH) {
-        MsgBox "鼠标不在游戏窗口内"
-        grabWaiting := false
-        return
-    }
-    ; 计算相对坐标
-    relX := Round((mouseX - winX) / winW, 10)
-    relY := Round((mouseY - winY) / winH, 10)
-    ; 获取颜色
-    hDC := DllCall("GetDC", "Ptr", 0, "Ptr")
-    color := DllCall("GetPixel", "Ptr", hDC, "Int", mouseX, "Int", mouseY, "UInt")
-    DllCall("ReleaseDC", "Ptr", 0, "Ptr", hDC)
-    hexColor := Format("0x{:06X}", color)
-    ; 填充控件（使用存储的控件引用）
-    if grabTargetX && grabTargetY && grabTargetColor {
+
+    ; 计算相对坐标（基于客户区左上角，范围 0~1）
+    relX := Round(mouseX / clientW, 10)
+    relY := Round(mouseY / clientH, 10)
+
+    ; 不再获取颜色，直接填充坐标（颜色控件留空或不修改）
+    if grabTargetX && grabTargetY {
         grabTargetX.Value := relX
         grabTargetY.Value := relY
-        grabTargetColor.Value := hexColor
-        MsgBox "抓取成功！行 " grabTargetIdx "`nX%: " relX "`nY%: " relY "`n颜色: " hexColor
+        ; 如果 grabTargetColor 存在，可选择不清空或保留原值，这里不修改颜色
+        MsgBox "抓取成功！行 " grabTargetIdx "`nX%: " relX "`nY%: " relY
+    } else {
+        MsgBox "抓取失败：目标控件无效"
     }
     grabWaiting := false
+}
+;重新加载
+F5::{
+    exitkill()
+    Reload
 }
