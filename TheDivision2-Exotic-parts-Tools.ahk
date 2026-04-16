@@ -32,13 +32,13 @@ global logBuffer := []          ; 存储最近的操作记录
 global maxLogLines := 100       ; 最多保留 100 条记录
 ;抓点参数定义
 ;x坐标百分比小数，y坐标百分比小数，颜色值，容差，重试次数，重试间隔时间ms,调试模式
-global Thefirstcharacter := [0.50234375,0.9361,0x136AFF,5,150,1000,false] ;选中拆零件的角色
-global Thefourthcharacter := [0.551953125,0.93125,0x136AFF,5,10,200,false] ;选中第四个角色
-global NDPW := [0.431640625,0.55625,0x3C3A93,20,300,500,false] ;断网提示窗口
-global Bubbleicon := [0.0300781250,0.9277777778,0xFFFFFF,5,150,1000,false] ;气泡图标
-global Storagebox := [0.725390625,0.240278,0x000000,0,5,500,false] ;储藏箱
-global mailbox := [0.68125,0.490278,0x000000,5, 30,500,false] ;信箱
-global advertisement := [0.498046875,0.250694,0x136AFF,5, 30,1000,false] ;育碧广告
+global Thefirstcharacter := [0.5019531250, 0.9354166667,0xFF6A13,5,150,1000,false] ;选中拆零件的角色
+global Thefourthcharacter := [0.5468750000, 0.9402645,0xFF6A13,5,10,200,false] ;选中第四个角色
+global NDPW := [0.6761718750, 0.5576388889,0x973A3C,20,300,500,false] ;断网提示窗口
+global Bubbleicon := [0.0300781250, 0.9284722222,0xFFFFFF,5,150,1000,false] ;气泡图标
+global Storagebox := [0.7207031250, 0.2458333333,0x000000,0,5,500,false] ;储藏箱
+global mailbox := [0.6808593750, 0.4625000000,0x000000,5, 30,500,false] ;信箱
+global advertisement := [0.498046875,0.250694,0xFF6A13,5, 30,1000,false] ;育碧广告
 ;抓取工具变量
 global grabWaiting := false
 global grabTargetX, grabTargetY, grabTargetColor
@@ -250,22 +250,22 @@ ApplyCustomParamsSetting() {
         ; 未勾选自定义参数，根据窗口化模式选择不同的默认参数
         if windowedMode {
             ; ========== 窗口化模式下的默认参数==========
-            Thefirstcharacter := [0.501953125, 0.82942708333333337,0x136AFF,5,150,1000,false]
-            Thefourthcharacter := [0.546875, 0.82942708333333337,0x136AFF,5,10,200,false]
-            NDPW := [0.572265625, 0.54036458333333337,0x3C3A95,20,300,500,false]
-            Bubbleicon := [0.0458984375, 0.92838541666666663,0xFFFFFF,5,150,1000,false]
-            Storagebox := [0.640625, 0.24479166666666666,0x000000,5,10,500,false]
-            mailbox := [0.5859375, 0.46354166666666669,0x000000,5,30,500,false]
-            advertisement := [0.4970703125, 0.3125,0x136AFF,5,30,1000,false]
+            Thefirstcharacter := [0.50289, 0.826,0xFF6A13,5,150,1000,false]
+            Thefourthcharacter := [0.5461538462, 0.8277571252,0xFF6A13,5,10,200,false]
+            NDPW := [0.6538461538, 0.5588599752,0x963A3C,20,300,500,false] ;已更新
+            Bubbleicon := [0.0538461538, 0.9244114002,0xFFFFFF,5,150,1000,false]
+            Storagebox := [0.6336538462, 0.2715,0x000000,5,10,500,false]
+            mailbox := [0.5836538462, 0.4795539033,0x000000,5,30,500,false]
+            advertisement := [0.4970703125, 0.3125,0xFF6A13,5,30,1000,false]
         } else {
             ; ========== 全屏模式下的默认参数（原有值）==========
-            Thefirstcharacter := [0.50234375,0.9361,0x136AFF,5,150,1000,false]
-            Thefourthcharacter := [0.551953125,0.93125,0x136AFF,5,10,200,false]
-            NDPW := [0.431640625,0.55625,0x3C3A93,20,300,500,false]
-            Bubbleicon := [0.0300781250,0.9277777778,0xFFFFFF,5,150,1000,false]
-            Storagebox := [0.725390625,0.240278,0x000000,0,5,500,false]
-            mailbox := [0.68125,0.490278,0x000000,5,30,500,false]
-            advertisement := [0.498046875,0.250694,0x136AFF,5,30,1000,false]
+            Thefirstcharacter := [0.5019531250, 0.9354166667,0xFF6A13,5,150,1000,false]
+            Thefourthcharacter := [0.5468750000, 0.9402645,0xFF6A13,5,10,200,false]
+            NDPW := [0.6761718750, 0.5576388889,0x973A3C,20,300,500,false]
+            Bubbleicon := [0.0300781250, 0.9284722222,0xFFFFFF,5,150,1000,false]
+            Storagebox := [0.7207031250, 0.2458333333,0x000000,0,5,500,false]
+            mailbox := [0.6808593750, 0.4625000000,0x000000,5, 30,500,false]
+            advertisement := [0.498046875,0.250694,0xFF6A13,5, 30,1000,false]
         }
     }
 }
@@ -275,28 +275,28 @@ ApplyRolePreset(*) {
     if (windowedMode) {
         ; 窗口化模式下的坐标预设
         if (selected = "第一个角色") {
-            Thefirstcharacter[1] := 0.501953125
-            Thefirstcharacter[2] := 0.82942708333333337
+            Thefirstcharacter[1] := 0.50289
+            Thefirstcharacter[2] := 0.826
         } else if (selected = "第二个角色") {
-            Thefirstcharacter[1] := 0.517578125
-            Thefirstcharacter[2] := 0.82942708333333337
+            Thefirstcharacter[1] := 0.518999999
+            Thefirstcharacter[2] := 0.826
         } else if (selected = "第三个角色") {
-            Thefirstcharacter[1] := 0.533203125
-            Thefirstcharacter[2] := 0.82942708333333337
+            Thefirstcharacter[1] := 0.5345
+            Thefirstcharacter[2] := 0.826
         } else {
             return
         }
     } else {
         ; 全屏模式下的坐标预设
         if (selected = "第一个角色") {
-            Thefirstcharacter[1] := 0.50234375
-            Thefirstcharacter[2] := 0.9361
+            Thefirstcharacter[1] := 0.5019531250
+            Thefirstcharacter[2] := 0.9354166667
         } else if (selected = "第二个角色") {
             Thefirstcharacter[1] := 0.517578125
-            Thefirstcharacter[2] := 0.9361
+            Thefirstcharacter[2] := 0.9354166667
         } else if (selected = "第三个角色") {
             Thefirstcharacter[1] := 0.53398437499999996
-            Thefirstcharacter[2] := 0.9361
+            Thefirstcharacter[2] := 0.9354166667
         } else {
             return
         }
@@ -623,17 +623,6 @@ FloatingWindow.Show("x" xPos " y" yPos " w" winWidth " h" winHeight " NoActivate
 ; 显示窗口
 mainGui.Show()
 
-; 等待用户关闭窗口
-WinWaitClose windowstite
-
-; ========== 窗口关闭后，从配置文件读取配置 ==========
-TheDivision2Path := IniRead(configFile, "Game", "TheDivision2Path", "")
-NetworkAdapter := IniRead(configFile, "Network", "Adapter", "")
-if (NetworkAdapter = "")
-    NetworkAdapter := "以太网"
-; 读取断网方式，默认为防火墙规则
-NetMethod := IniRead(configFile, "Settings", "NetMethod", NET_FIREWALL)
-
 ; 颜色检测函数（支持重试，使用 DllCall 获取颜色）
 ; 参数：
 ;   hwnd        - 窗口句柄
@@ -644,6 +633,13 @@ NetMethod := IniRead(configFile, "Settings", "NetMethod", NET_FIREWALL)
 ;   retryDelay  - 重试间隔（毫秒），默认 200
 ;   debug       - 是否显示F10调试信息，默认 false
 ; 返回：匹配返回 true，否则 false
+GetColorFromScreen(x, y) {
+    hdc := DllCall("GetDC", "Ptr", 0, "Ptr")
+    color := DllCall("GetPixel", "Ptr", hdc, "Int", x, "Int", y, "UInt")
+    DllCall("ReleaseDC", "Ptr", 0, "Ptr", hdc)
+    ; 转换颜色格式 (GetPixel 返回 0xBBGGRR)
+    return ((color & 0xFF) << 16) | (color & 0xFF00) | ((color >> 16) & 0xFF)
+}
 CheckColorWithRetry(hwnd, percentX, percentY, targetColor, variation := 20, maxRetries := 20, retryDelay := 200, debug := false) {
         ; 检查窗口句柄是否有效
         global windowedMode
@@ -652,9 +648,9 @@ CheckColorWithRetry(hwnd, percentX, percentY, targetColor, variation := 20, maxR
                 return false
             }
         if windowedMode {
-            WinGetClientPos(&winX, &winY, &winW, &winH, hwnd)
+            WinGetPos(&winX, &winY, &winW, &winH, hwnd)
         } else {
-            WinGetClientPos(, , &winW, &winH, hwnd)  ; 只获取宽高，不获取位置
+            WinGetPos(, , &winW, &winH, hwnd)  ; 只获取宽高，不获取位置
             winX := 0
             winY := 0
         }
@@ -666,10 +662,7 @@ CheckColorWithRetry(hwnd, percentX, percentY, targetColor, variation := 20, maxR
             SetTimer () => ToolTip(), -1000
         } 
 
-        ; 使用 DllCall 获取颜色
-        hDC := DllCall("GetDC", "Ptr", 0, "Ptr")
-        actualColor := DllCall("GetPixel", "Ptr", hDC, "Int", screenX, "Int", screenY, "UInt")
-        DllCall("ReleaseDC", "Ptr", 0, "Ptr", hDC)
+        actualColor := GetColorFromScreen(screenX, screenY)
 
         if debug {
             Sleep 1000
@@ -688,7 +681,7 @@ CheckColorWithRetry(hwnd, percentX, percentY, targetColor, variation := 20, maxR
 }
 
 
-; 颜色匹配辅助函数（保持不变）
+; 颜色匹配辅助函数
 ColorsMatch(color1, color2, variation) {
     r1 := (color1 >> 16) & 0xFF
     g1 := (color1 >> 8) & 0xFF
@@ -1001,7 +994,20 @@ reboot(){
         }
     }
 ;==================================
-
+;注销操作函数
+LoGout(){
+    SendInput "{ESC down}"
+    Sleep 50
+    SendInput "{ESC up}"
+    Sleep 500
+    SendInput "{G down}"
+    Sleep 50
+    SendInput "{G up}"
+    Sleep 500
+    SendInput "{Space down}"
+    Sleep 50
+    SendInput "{Space up}"
+}
 ;主要函数
 RunAutomation(){
     ToolTip "开始运行..."
@@ -1190,6 +1196,8 @@ RunAutomation(){
                                     Sleep 1500
                                     SendInput "{ESC up}"
                                     Sleep 100
+                                    LoGout()
+                                    goto nextEquipment
                                 }
                             }else{
                                 if !equipmentnd{
@@ -1198,31 +1206,11 @@ RunAutomation(){
                                     Sleep 1500
                                     SendInput "{ESC up}"
                                 }
-                                SendInput "{ESC down}"
-                                Sleep 50
-                                SendInput "{ESC up}"
-                                Sleep 500
-                                SendInput "{G down}"
-                                Sleep 50
-                                SendInput "{G up}"
-                                Sleep 500
-                                SendInput "{Space down}"
-                                Sleep 50
-                                SendInput "{Space up}"
+                                LoGout()
                                 goto nextEquipment
                             }
                             ;退出
-                            SendInput "{ESC down}"
-                            Sleep 50
-                            SendInput "{ESC up}"
-                            Sleep 500
-                            Send "{G down}"
-                            Sleep 50
-                            Send "{G up}"
-                            Sleep 500
-                            SendInput "{Space down}"
-                            Sleep 50
-                            SendInput "{Space up}"
+                            LoGout()
                             ToolTip "准备开始下一次循环"
                             SetTimer () => ToolTip(), -1500
                             ;确认回到主界面
@@ -1290,8 +1278,7 @@ F10:: RunAutomation()
 F9:: reboot()
 ;抓点热键
 !F1:: {
-    global grabWaiting, grabTargetX, grabTargetY, grabTargetColor, gamefile
-    SaveCurrentConfig()
+    global grabWaiting, grabTargetX, grabTargetY, grabTargetColor,grabTargetColor , gamefile
     if !grabWaiting
         return
 
@@ -1303,22 +1290,66 @@ F9:: reboot()
         return
     }
 
-    ; 获取客户区（游戏实际画面区域）的位置和大小
-    WinGetClientPos(&clientX, &clientY, &clientW, &clientH, hwnd)
-
-    ; 获取鼠标屏幕坐标
+    ; 获取窗口矩形（用于判断鼠标是否在窗口内）
+    GetWindowRect(hwnd, &left, &top, &right, &bottom) {
+        rect := Buffer(16, 0)
+        if !DllCall("GetWindowRect", "Ptr", hwnd, "Ptr", rect)
+            return false
+        left := NumGet(rect, 0, "Int")
+        top := NumGet(rect, 4, "Int")
+        right := NumGet(rect, 8, "Int")
+        bottom := NumGet(rect, 12, "Int")
+        return true
+    }
     MouseGetPos(&mouseX, &mouseY)
+    ;获取整个窗口的位置和大小
+    WinGetPos(&winX, &winY, &winW, &winH, hwnd)
+    ;获取客户区的窗口大小
+    WinGetClientPos(&clientX, &clientY, &clientW, &clientH, hwnd)
+    ;计算标题高度和边框
+    titleW := Integer((winW - clientW) / 2)
+    titleH := (winH - clientH) - titleW
+    ; 计算鼠标相对于整个窗口左上角的坐标
+    relX := mouseX + titleW
+    relY := mouseY + titleH
 
-    ; 计算相对坐标（基于客户区左上角，范围 0~1）
-    relX := Round(mouseX / clientW, 10)
-    relY := Round(mouseY / clientH, 10)
+    if (relX < 0 || relY < 0 || relX > winW || relY > winH) {
+        ToolTip "鼠标不在游戏窗口内"
+        SetTimer () => ToolTip(), -2000
+        return
+    }
+    
+    GetCursorPos(&PmouseX, &PmouseY) {
+        static POINT := Buffer(8)
+        if DllCall("GetCursorPos", "Ptr", POINT) {
+            PmouseX := NumGet(POINT, 0, "Int")
+            PmouseY := NumGet(POINT, 4, "Int")
+            return true
+        }
+        return false
+    }
+    GetCursorPos(&PmouseX, &PmouseY)
 
+    color := GetColorFromScreen(PmouseX, PmouseY)
+    if (color = -1) {
+        ToolTip "颜色捕获失败"
+        SetTimer () => ToolTip(), -2000
+        return
+    }
+
+    ; 计算百分比坐标（基于整个窗口）
+    percentX := Round(relX / winW, 10)
+    percentY := Round(relY / winH, 10)
+    colorHex := Format("0x{:06X}", color)
     ; 不再获取颜色，直接填充坐标（颜色控件留空或不修改）
     if grabTargetX && grabTargetY {
-        grabTargetX.Value := relX
-        grabTargetY.Value := relY
-        ; 如果 grabTargetColor 存在，可选择不清空或保留原值，这里不修改颜色
-        MsgBox "抓取成功！行 " grabTargetIdx "`nX%: " relX "`nY%: " relY
+        grabTargetX.Value := percentX
+        grabTargetY.Value := percentY
+        grabTargetColor.Value := colorHex
+        result := Format("窗口尺寸: {}x{}`n鼠标坐标: ({}, {})`n坐标百分比: ({}, {})`n颜色: {}", winW, winH, relX, relY, percentX, percentY, colorHex)
+
+        MsgBox "抓取成功 `nX坐标百分比: " percentX "`nY坐标百分比: " percentY "`n16进制颜色值: " colorHex "`n已复制详细信息到剪切板"
+        A_Clipboard := result
     } else {
         MsgBox "抓取失败：目标控件无效"
     }
