@@ -11,7 +11,7 @@ if !A_IsAdmin {
 ;=======全局变量=========
 global configFile := A_ScriptDir "\config.ini"
 ;EDRSilencer路径
-global windowstite := "TheDivision2-Exotic-parts-Tools-1.5"
+global windowstite := "TheDivision2-Exotic-parts-Tools-1.5.3"
 global pbPath := A_ScriptDir "\EDRSilencer\EDRSilencer.exe"
 global stopLoop := false
 global TheDivision2Path := IniRead(A_ScriptDir "\config.ini", "Game", "TheDivision2Path", "")
@@ -45,6 +45,8 @@ global grabTargetX, grabTargetY, grabTargetColor
 global grabTargetIdx := 0
 global windowedMode := false   ; 窗口化模式，默认关闭
 global useCustomParams := false   ; 是否使用自定义抓点参数
+;安全屋
+global safeHouseOption := "商店"
 ; 检查文件是否存在，不存在则释放
 if !FileExist(pbPath) {
     ; 确保目标目录存在
@@ -238,6 +240,15 @@ RefreshAdapterList() {
         }
     }
 }
+;安全屋选项回调函数
+SafeHouseListCallback(*){
+    global SafeHousePreset, configFile, safeHouseOption
+    selected := SafeHousePreset.Text
+    safeHouseOption := selected
+    IniWrite selected, configFile, "SafeHouse", "Preset"
+    ToolTip "安全屋预设已保存: " selected
+    SetTimer () => ToolTip(), -1500
+}
 
 ApplyCustomParamsSetting() {
     global chkUseCustom, windowedMode
@@ -412,13 +423,21 @@ mainGui.Add("Text", "x10 y220 w300 h30", "角色预设：")
 comboRolePreset := mainGui.Add("ComboBox", "x10 y240 w150 h90 Choose1", ["第一个角色", "第二个角色", "第三个角色"])
 btnApplyPreset := mainGui.Add("Button", "x170 y239 w80 h20", "应用")
 btnApplyPreset.OnEvent("Click", ApplyRolePreset)
-mainGui.Add("Text", "x260 y240 w250 h30", "选择后需要点击应用更新参数`n会覆盖自定义抓点参数")
+mainGui.Add("Text", "x260 y230 w300 h50", "选择后需要点击应用更新参数`n修改后需要用该角色进入一次游戏然后注销再运行`n会覆盖自定义抓点参数")
 
-chkUseCustom := mainGui.Add("CheckBox", "x10 y280 w140 h30", "使用自定义抓点参数")
+;安全屋预设选择
+safeHouseOptions := ["商店", "白宫"]
+mainGui.Add("Text", "x10 y280 w300 h30", "安全屋预设：")
+SafeHousePreset := mainGui.Add("ComboBox", "x10 y300 w150 h90 Choose1", safeHouseOptions)
+mainGui.Add("Text", "x170 y300 w220 h30", "先使用角色预设中的角色`n传送到对应的安全屋然后注销再运行")
+SafeHousePreset.OnEvent("Change", SafeHouseListCallback)
+
+;自定义抓点参数
+chkUseCustom := mainGui.Add("CheckBox", "x10 y360 w140 h30", "使用自定义抓点参数")
 chkUseCustom.OnEvent("Click", OnUseCustomClick)
-btnEditParams  := mainGui.Add("Button", "x150 y280 w100 h30", "自定义抓点参数")
+btnEditParams  := mainGui.Add("Button", "x150 y360 w100 h30", "自定义抓点参数")
 btnEditParams.OnEvent("Click", OpenParamEditor)
-mainGui.Add("Text", "x260 y285 w250 h30", "如果你不知道这是什么`n请不要勾选和修改")
+mainGui.Add("Text", "x260 y365 w250 h30", "如果你不知道这是什么`n请不要勾选和修改")
 
 
 ; 抓点函数：设置抓取目标控件
@@ -542,23 +561,23 @@ WriteAllParamsToIni() {
 }
 
 ; ========== 说明文本 ==========
-mainGui.Add("Text", "x10 y320 w480 h30", "网线和WIFI使用其中一个，保存后F10运行，F12强制停止程序，F5暂停并重启程序")
+mainGui.Add("Text", "x10 y410 w480 h30", "网线和WIFI使用其中一个，保存后F10运行，F12强制停止程序，F5暂停并重启程序")
 
 ; 关闭按钮
-btnCancel := mainGui.Add("Button", "x10 y350 w200 h40", "保存并关闭窗口")
+btnCancel := mainGui.Add("Button", "x10 y440 w200 h40", "保存并关闭窗口")
 
-btnSaveOnly := mainGui.Add("Button", "x220 y350 w100 h40", "保存")
+btnSaveOnly := mainGui.Add("Button", "x220 y440 w100 h40", "保存")
 btnSaveOnly.OnEvent("Click", (*) => SaveCurrentConfig())
 
 
-; 加载已保存的选项，确保是有效整数
+; 加载网卡配置
 savedMethod := IniRead(configFile, "Settings", "NetMethod", NET_PROXYBRIDGE)
 savedMethod := savedMethod + 0   ; 转换为整数
 if (savedMethod < 1 || savedMethod > 3)
     savedMethod := NET_PROXYBRIDGE
 comboNetMethod.Choose(savedMethod)
 
-; 加载已有配置（仅用于显示）
+; 加载游戏路径
 savedPath := IniRead(configFile, "Game", "TheDivision2Path", "")
 
 ; ===== 自动检测 =====
@@ -584,13 +603,27 @@ if savedPath
 savedAdapter := IniRead(configFile, "Network", "Adapter", "")
 RefreshAdapterList()   ; 填充网卡列表
 
-; 读取窗口化模式设置
+; 加载窗口化模式设置
 savedWindowedMode := IniRead(configFile, "Settings", "WindowedMode", 0)
 chkWindowed.Value := savedWindowedMode
 windowedMode := savedWindowedMode
 
 useCustomParams := IniRead(configFile, "Settings", "UseCustomParams", 0)
 chkUseCustom.Value := useCustomParams
+
+; 加载安全屋预设
+savedSafeHouse := IniRead(configFile, "SafeHouse", "Preset", "")
+if savedSafeHouse = "" {
+    savedSafeHouse := "商店"
+    IniWrite savedSafeHouse, configFile, "SafeHouse", "Preset"
+}
+for idx, opt in safeHouseOptions {
+    if (opt = savedSafeHouse) {
+        SafeHousePreset.Choose(idx)
+        break
+    }
+}
+safeHouseOption := savedSafeHouse
 
 ApplyCustomParamsSetting()
 
@@ -617,7 +650,7 @@ winHeight := 70
 xPos := 10
 yPos := 10
 
-; 显示窗口
+; 显示悬浮窗
 FloatingWindow.Show("x" xPos " y" yPos " w" winWidth " h" winHeight " NoActivate")
 
 ; 显示窗口
@@ -1008,6 +1041,30 @@ LoGout(){
     Sleep 50
     SendInput "{Space up}"
 }
+;这里放置不同安全屋寻路使用的参数根据全局变量safeHouseOption
+PathfindingParameter(){
+    global safeHouseOption
+    if (safeHouseOption = "商店"){
+        SendInput "{W down}{D down}"
+        Sleep 220
+        SendInput "{W up}"
+        Sleep 120
+        SendInput "{D up}"
+        return true
+    }else if(safeHouseOption = "白宫"){
+        SendInput "{W down}"
+        Sleep 1850
+        SendInput "{A down}"
+        Sleep 2100
+        SendInput "{A up}"
+        Sleep 2500
+        SendInput "{W up}"
+        return true
+    }else{
+        MsgBox "未能读取到正确的寻路参数，请将该窗口截图提供给开发者`n程序中止运行`nsafeHouseOption:" safeHouseOption
+        return false
+    }
+}
 ;主要函数
 RunAutomation(){
     ToolTip "开始运行..."
@@ -1113,15 +1170,13 @@ RunAutomation(){
                             ToolTip "已检测到控件，确认已成功进入世界，开始移动"
                             SetTimer () => ToolTip(), -2000
                             Sleep 1500
-                            Send "{W down}{D down}"
-                            Sleep 220
-                            Send "{W up}"
-                            Sleep 120
-                            Send "{D up}"
+                            if !PathfindingParameter(){
+                                return
+                            }
                             Sleep 200
-                            Send "{F down}"
+                            SendInput "{F down}"
                             Sleep 1800
-                            Send "{F up}"
+                            SendInput "{F up}"
                             ;进入装备页面
                             Sleep 500
                             equipment := CheckColorWithRetry(gameHwnd,Storagebox[1],Storagebox[2],Storagebox[3],Storagebox[4],Storagebox[5],Storagebox[6],Storagebox[7])
