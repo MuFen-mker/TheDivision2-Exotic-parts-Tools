@@ -1,5 +1,5 @@
 # -------------   全境封锁2奇特零件自动化工具   -------------
-## [下载](https://github.com/MuFen-mker/TheDivision2-Exotic-parts-Tools/releases)
+## [下载TheDivision2-Exotic-parts-Tools.exe](https://github.com/MuFen-mker/TheDivision2-Exotic-parts-Tools/releases)
 
 一款适用于全境封锁2（国际服）的奇特零件自动化获取工具
 
