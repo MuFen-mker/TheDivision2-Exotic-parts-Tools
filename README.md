@@ -49,6 +49,8 @@ Windows缩放只在100%的情况下测试过，如果你有异常，可以修改
 拆零件的角色（对应GUI中角色预设）上线传送到安全屋预设中对应的地点
 
 打开聊天框点X，确认左下角有聊天框的图标后注销
+<img width="192" height="158" alt="QQ_1776455073834" src="https://github.com/user-attachments/assets/43e24e92-ed97-4e0e-b5be-2c087a333ce1" />
+
 
 # -----------------------   启动程序   -----------------------
 右键TheDivision2-Exotic-parts-Tools.exe，以管理员身份运行
