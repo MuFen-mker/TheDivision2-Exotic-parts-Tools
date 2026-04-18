@@ -1249,7 +1249,7 @@ RunAutomation(){
                                     SendInput "{ESC down}"
                                     Sleep 1500
                                     SendInput "{ESC up}"
-                                    Sleep 100
+                                    Sleep 1000
                                     LoGout()
                                     goto nextEquipment
                                 }
