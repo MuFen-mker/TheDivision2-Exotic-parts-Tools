@@ -151,6 +151,10 @@ F9：启动重置模式
   > 推荐抓取红色部分，橙色部分也行
   <img width="1095" height="506" alt="image" src="https://github.com/user-attachments/assets/8e768d57-8c6f-44aa-96cc-6fffa3f33a7c" />
 
+  ### 聊天气泡图标
+  > 回车开聊天框后点聊天框的x就会显示出来，抓白色部分
+  <img width="192" height="158" alt="QQ_1776455073834" src="https://github.com/user-attachments/assets/43e24e92-ed97-4e0e-b5be-2c087a333ce1" />
+
   ### 进入储藏箱的UI
   > 此处建议抓武器图标的黑色部分，也可以自己找UI界面颜色明显的部分，比如纯黑或者纯白，注意有些UI光标挪上去会位移
   <img width="801" height="1047" alt="image" src="https://github.com/user-attachments/assets/a08f736f-815e-4cb5-8cc2-6f8d18e635e7" />
