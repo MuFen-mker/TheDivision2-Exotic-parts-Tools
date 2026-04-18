@@ -139,6 +139,34 @@ F9：启动重置模式
   调试模式可根据自身需要开关
 
   # 取色参考点位
+  ### 拆零件角色的选中UI
+  > 示例第一个角色，抓橙色小方块的橙色部分
+  <img width="277" height="54" alt="image" src="https://github.com/user-attachments/assets/dfa7ea36-1fcd-4ac4-bbce-4476f2be1177" />
+
+  ### 第四个角色的选中UI
+  > 抓取橙色部分，因为区域大，识别成功率高
+  <img width="353" height="74" alt="image" src="https://github.com/user-attachments/assets/60a6daa6-17c1-4152-a7b8-5626da75d7d7" />
+
+  ### 掉线提示窗口
+  > 推荐抓取红色部分，橙色部分也行
+  <img width="1095" height="506" alt="image" src="https://github.com/user-attachments/assets/8e768d57-8c6f-44aa-96cc-6fffa3f33a7c" />
+
+  ### 进入储藏箱的UI
+  > 此处建议抓武器图标的黑色部分，也可以自己找UI界面颜色明显的部分，比如纯黑或者纯白，注意有些UI光标挪上去会位移
+  <img width="801" height="1047" alt="image" src="https://github.com/user-attachments/assets/a08f736f-815e-4cb5-8cc2-6f8d18e635e7" />
+
+  ### 切换到信箱的UI
+  > 建议抓邮件图标的黑色部分，不要抓QE栏这些可能穿透背景的地方（会被光影影响），注意有些UI光标挪上去会位移
+  <img width="1024" height="1116" alt="image" src="https://github.com/user-attachments/assets/2695616d-9d07-4dfb-a1f6-4b2c7a53c000" />
+
+  ### 育碧广告
+  > 写文档的时候它还没弹广告，后面再补，就是每次更新皮肤后在选人界面会弹出来的玩意，只是给重置逻辑那边用来跳过广告防止卡住的而已，不会影响主要逻辑的处理
+  
+
+  
+
+  
+
 
 # -----------------------   次要补充   -----------------------
   窗口化模式：勾选后立即应用并刷新参数，如果你需要使用自定义抓色参数，请勾选后重新进入子菜单保存，如果你准备在窗口化游戏使用自定义抓色功能，此项需开启
