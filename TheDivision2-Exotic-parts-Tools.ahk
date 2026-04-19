@@ -278,6 +278,7 @@ ApplyCustomParamsSetting() {
             mailbox := [0.6808593750, 0.4625000000,0x000000,5, 30,500,false]
             advertisement := [0.498046875,0.250694,0xFF6A13,5, 30,1000,false]
         }
+        ApplyRolePreset()
     }
 }
 ApplyRolePreset(*) {
