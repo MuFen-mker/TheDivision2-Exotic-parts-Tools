@@ -1192,15 +1192,20 @@ RunAutomation(){
                                 equipment2 := CheckColorWithRetry(gameHwnd,mailbox[1],mailbox[2],mailbox[3],mailbox[4],mailbox[5],mailbox[6],mailbox[7])
                                 if equipment2 {
                                     ToolTip "开始收取武器"
-                                    SetTimer () => ToolTip(), -2000
-                                    Sleep 700
-                                    SendInput "{D down}"
-                                    Sleep 50
-                                    SendInput "{D up}"
-                                    Sleep 100
-                                    SendInput "{W down}"
-                                    Sleep 50
-                                    SendInput "{W up}"
+                                    SetTimer () => ToolTip(), -500
+                                    Sleep 1000
+                                    Loop 3{
+                                        SendInput "{D down}"
+                                        Sleep 50
+                                        SendInput "{D up}"
+                                        Sleep 50
+                                    }
+                                    Loop 3{
+                                        SendInput "{W down}"
+                                        Sleep 50
+                                        SendInput "{W up}"
+                                        Sleep 50
+                                    }
                                     Sleep 100
                                     SendInput "{Space down}"
                                     Sleep 50
