@@ -41,6 +41,8 @@ Windows缩放只在100%的情况下测试过，如果你有异常，可以修改
 
 如果有使用帧生成，超分辨率等，建议关闭
 
+手上别拿着讯步
+
 建议把装备全部标记最爱，然后把邮箱里面掏空防止误拆（可以去商人出售那边快速标记最爱）
 
 留出第四个角色空位（即确保你有三个角色，和一个角色空位）
@@ -151,6 +153,10 @@ F9：启动重置模式
   > 推荐抓取红色部分，橙色部分也行
   <img width="1095" height="506" alt="image" src="https://github.com/user-attachments/assets/8e768d57-8c6f-44aa-96cc-6fffa3f33a7c" />
 
+  ### 聊天气泡图标
+  > 回车开聊天框后点聊天框的x就会显示出来，抓白色部分
+  <img width="192" height="158" alt="QQ_1776455073834" src="https://github.com/user-attachments/assets/43e24e92-ed97-4e0e-b5be-2c087a333ce1" />
+
   ### 进入储藏箱的UI
   > 此处建议抓武器图标的黑色部分，也可以自己找UI界面颜色明显的部分，比如纯黑或者纯白，注意有些UI光标挪上去会位移
   <img width="801" height="1047" alt="image" src="https://github.com/user-attachments/assets/a08f736f-815e-4cb5-8cc2-6f8d18e635e7" />
@@ -160,7 +166,7 @@ F9：启动重置模式
   <img width="1024" height="1116" alt="image" src="https://github.com/user-attachments/assets/2695616d-9d07-4dfb-a1f6-4b2c7a53c000" />
 
   ### 育碧广告
-  > 写文档的时候它还没弹广告，后面再补，就是每次更新皮肤后在选人界面会弹出来的玩意，只是给重置逻辑那边用来跳过广告防止卡住的而已，不会影响主要逻辑的处理
+  > 写文档的时候它还没弹广告，后面再补，就是每次更新皮肤后在选人界面会弹出来的玩意，只是给重置逻辑那边用来跳过广告防止卡住的而已，不会影响主要逻辑
   
 
   
