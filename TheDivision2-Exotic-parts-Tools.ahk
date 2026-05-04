@@ -1046,7 +1046,7 @@ PathfindingParameter(){
         SendInput "{W down}"
         Sleep 2100
         SendInput "{A down}"
-        Sleep 2050
+        Sleep 1900
         SendInput "{A up}"
         Sleep 3000
         SendInput "{W up}"
