@@ -1235,9 +1235,9 @@ RunAutomation(){
                                         SendInput "{Tab up}"
                                         Sleep 200
                                         SendInput "{Space down}"
-                                        Sleep 50
+                                        Sleep 200
                                         SendInput "{Space up}"
-                                        Sleep 300
+                                        Sleep 100
                                         SendInput "{ESC down}"
                                         Sleep 1500
                                         SendInput "{ESC up}"
