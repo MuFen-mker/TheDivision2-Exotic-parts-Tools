@@ -907,6 +907,7 @@ reboot(){
     global advertisement
     global NDPW
     global floatingHwnd
+    global steamMode
     EnableAdapter(adapter)
     SaveLogToFile()
     gamghwd := WinExist("ahk_exe " gamefile)
