@@ -13,7 +13,7 @@ MsgBox "请将程序所在的整个目录加入杀毒软件白名单，否则可
 ;=======全局变量=========
 global configFile := A_ScriptDir "\config.ini"
 ;EDRSilencer路径
-global windowstite := "TheDivision2-Exotic-parts-Tools-1.5.5"
+global windowstite := "TheDivision2-Exotic-parts-Tools-1.5.6"
 global pbPath := A_ScriptDir "\EDRSilencer\EDRSilencer.exe"
 global stopLoop := false
 global TheDivision2Path := IniRead(A_ScriptDir "\config.ini", "Game", "TheDivision2Path", "")
@@ -48,6 +48,8 @@ global windowedMode := false   ; 窗口化模式，默认关闭
 global useCustomParams := false   ; 是否使用自定义抓点参数
 ;安全屋
 global safeHouseOption := "商店"
+;steam版判断调整
+global steamMode := 0
 ; 检查文件是否存在，不存在则释放
 if !FileExist(pbPath) {
     ; 确保目标目录存在
@@ -317,6 +319,18 @@ ApplyRolePreset(*) {
     ToolTip "已切换到 " selected " 的抓点参数"
     SetTimer () => ToolTip(), -1500
 }
+OnSteamPresetClick(*){
+    global steamMode
+    steamMode := chkSteamPreset.Value
+    if steamMode = 1{
+        modeTip := "Steam版"
+    }else{
+        modeTip := "UBI版"
+    }
+    IniWrite chkSteamPreset.Value ? 1 : 0,configFile, "Settings", "platformModel"
+    ToolTip "已切换模式: " modeTip
+    SetTimer () => ToolTip(), -1500
+}
 OnUseCustomClick(*) {
     global chkUseCustom, configFile
     ; 保存复选框状态到配置文件
@@ -339,7 +353,7 @@ OnWindowedModeClick(*) {
 }
 
 SaveCurrentConfig() {
-    global editPath, comboAdapter, configFile, TheDivision2Path, NetworkAdapter, gamefile, NetMethod, comboNetMethod
+    global editPath, comboAdapter, configFile, TheDivision2Path, NetworkAdapter, gamefile, NetMethod, comboNetMethod,steamMode
     path := Trim(editPath.Value)
     ; 不再强制要求选择网卡
     ; adapter := Trim(comboAdapter.Text)
@@ -363,6 +377,7 @@ SaveCurrentConfig() {
     NetMethod := comboNetMethod.Value
     SplitPath(TheDivision2Path, &fileName)
     gamefile := fileName
+    steamMode := chkSteamPreset.Value
 
     ; 保存配置到文件
     IniWrite path, configFile, "Game", "TheDivision2Path"
@@ -370,6 +385,7 @@ SaveCurrentConfig() {
     IniWrite comboNetMethod.Value, configFile, "Settings", "NetMethod"
     IniWrite chkWindowed.Value ? 1 : 0, configFile, "Settings", "WindowedMode"
     IniWrite chkUseCustom.Value ? 1 : 0, configFile, "Settings", "UseCustomParams"
+    IniWrite chkSteamPreset.Value ? 1 : 0,configFile, "Settings", "platformModel"
 
     ApplyCustomParamsSetting()
 
@@ -432,6 +448,10 @@ mainGui.Add("Text", "x10 y280 w300 h30", "安全屋预设：")
 SafeHousePreset := mainGui.Add("ComboBox", "x10 y300 w150 h90 Choose1", safeHouseOptions)
 mainGui.Add("Text", "x170 y300 w220 h30", "先使用角色预设中的角色`n传送到对应的安全屋然后注销再运行")
 SafeHousePreset.OnEvent("Change", SafeHouseListCallback)
+
+;steam版选项
+chkSteamPreset := mainGui.Add("CheckBox", "x10 y330 w140 h30", "Steam版模式")
+chkSteamPreset.OnEvent("Click", OnSteamPresetClick)
 
 ;自定义抓点参数
 chkUseCustom := mainGui.Add("CheckBox", "x10 y360 w140 h30", "使用自定义抓点参数")
@@ -625,6 +645,11 @@ for idx, opt in safeHouseOptions {
     }
 }
 safeHouseOption := savedSafeHouse
+
+;加载平台运行模式
+saveSteampreset := IniRead(configFile, "Settings", "platformModel", 0)
+chkSteamPreset.Value := saveSteampreset
+steamMode := saveSteampreset
 
 ApplyCustomParamsSetting()
 
@@ -937,9 +962,12 @@ reboot(){
             RunWait 'taskkill /f /im ' gamefile, , "Hide"
         } else {
             ToolTip "未运行,执行启动"
+            SetTimer () => ToolTip(), -1500
         }
     }
-    RunWait 'taskkill /f /im ' "upc.exe", , "Hide"
+    if steamMode = 0{
+        RunWait 'taskkill /f /im ' "upc.exe", , "Hide"
+    }
     Sleep 10000
     maxRetries := 60 ;重试次数
     retryCount := 0 ;初始化计量
@@ -991,7 +1019,7 @@ reboot(){
         ;检测是否到选人界面
         adFlag := true
         Sleep 30000
-        ToolTip "开始检测是否到选人界面"
+        ToolTip "开始检测是否到选人界面(等待20秒左右)"
         foundol := CheckColorWithRetry(gamghwd,Thefirstcharacter[1],Thefirstcharacter[2],Thefirstcharacter[3],Thefirstcharacter[4],60,1000,Thefirstcharacter[7])
         found2 :=  CheckColorWithRetry(gamghwd,advertisement[1],advertisement[2],advertisement[3],advertisement[4],advertisement[5],advertisement[6],advertisement[7])
         loop 30{
@@ -1409,4 +1437,8 @@ F9:: reboot()
 F5::{
     exitkill()
     Reload
+}
+F1::{
+    global steamMode
+    MsgBox steamMode
 }
