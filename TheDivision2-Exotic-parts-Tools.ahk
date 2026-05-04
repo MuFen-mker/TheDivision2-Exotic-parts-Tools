@@ -8,10 +8,12 @@ if !A_IsAdmin {
     ExitApp
 }
 
+MsgBox "请将程序所在的整个目录加入杀毒软件白名单，否则可能导致断网失效"
+
 ;=======全局变量=========
 global configFile := A_ScriptDir "\config.ini"
 ;EDRSilencer路径
-global windowstite := "TheDivision2-Exotic-parts-Tools-1.5.4"
+global windowstite := "TheDivision2-Exotic-parts-Tools-1.5.5"
 global pbPath := A_ScriptDir "\EDRSilencer\EDRSilencer.exe"
 global stopLoop := false
 global TheDivision2Path := IniRead(A_ScriptDir "\config.ini", "Game", "TheDivision2Path", "")
@@ -20,9 +22,8 @@ global adapter := IniRead(A_ScriptDir "\config.ini", "Network", "Adapter", "")
 SplitPath(TheDivision2Path, &fileName)  ; 提取文件名
 global gamefile := fileName
 ; 断网方式常量
-global NET_FIREWALL := 1      ; 防火墙规则
+global NET_PROXYBRIDGE := 1   ; EDRSilencer
 global NET_ADAPTER := 2       ; 禁用网卡
-global NET_PROXYBRIDGE := 3   ; EDRSilencer
 global NetMethod := NET_PROXYBRIDGE
 ;运行状态显示
 global iterationCount := 0
@@ -412,7 +413,7 @@ comboAdapter := mainGui.Add("ComboBox", "x10 y100 w300 h200 Choose1")
 btnRefresh := mainGui.Add("Button", "x320 y98 w80 h27", "刷新")
 
 mainGui.Add("Text", "x10 y130 w300 h30", "选择断网方式：")
-comboNetMethod := mainGui.Add("ComboBox", "x10 y150 w400 h200 Choose3", ["防火墙规则（裸连网络稳定，响应快）", "禁用网卡（暴力断网，需选择网络适配器）", "EDRSilencer（WFP过滤，可使用加速器）"])
+comboNetMethod := mainGui.Add("ComboBox", "x10 y150 w400 h200 Choose1", ["EDRSilencer（WFP过滤，可使用加速器）","禁用网卡（暴力断网，需选择网络适配器）"])
 
 ; 窗口化模式勾选框
 chkWindowed := mainGui.Add("CheckBox", "x10 y180 w120 h30", "窗口化模式`n1024 x 768")
@@ -572,8 +573,8 @@ btnSaveOnly.OnEvent("Click", (*) => SaveCurrentConfig())
 
 ; 加载网卡配置
 savedMethod := IniRead(configFile, "Settings", "NetMethod", NET_PROXYBRIDGE)
-savedMethod := savedMethod + 0   ; 转换为整数
-if (savedMethod < 1 || savedMethod > 3)
+savedMethod := savedMethod + 0
+if (savedMethod < 1 || savedMethod > 2)
     savedMethod := NET_PROXYBRIDGE
 comboNetMethod.Choose(savedMethod)
 
@@ -793,13 +794,7 @@ CloseTCPConnections(pid) {
 ;==断网==
 DisableAdapter(adapterName) {
     global NetMethod, TheDivision2Path, pbPath
-    if (NetMethod = NET_FIREWALL) {
-        ; 防火墙规则
-        RunWait 'netsh advfirewall firewall add rule name="BlockGame_Out" dir=out action=block program="' TheDivision2Path '" enable=yes', , "Hide"
-        RunWait 'netsh advfirewall firewall add rule name="BlockGame_In" dir=in action=block program="' TheDivision2Path '" enable=yes', , "Hide"
-        ToolTip "已断开网络(防火墙规则)"
-        SetTimer () => ToolTip(), -2000
-    } else if (NetMethod = NET_ADAPTER) {
+    if (NetMethod = NET_ADAPTER) {
         if (adapterName = "")
             adapterName := "以太网"
         ; 禁用网卡
@@ -830,11 +825,7 @@ DisableAdapter(adapterName) {
 ;==恢复网络==
 EnableAdapter(adapterName) {
     global NetMethod, pbPath
-    if (NetMethod = NET_FIREWALL) {
-        ; 删除防火墙规则
-        RunWait 'netsh advfirewall firewall delete rule name="BlockGame_Out"', , "Hide"
-        RunWait 'netsh advfirewall firewall delete rule name="BlockGame_In"', , "Hide"
-    } else if (NetMethod = NET_ADAPTER) {
+    if (NetMethod = NET_ADAPTER) {
         if (adapterName = "")
             adapterName := "以太网"
         ; 启用网卡
@@ -1318,8 +1309,6 @@ RunAutomation(){
 exitkill(){
     global adapter, pbPath,gamefile
     RunWait 'netsh interface set interface "' adapter '" admin=enable', , "Hide"
-    RunWait 'netsh advfirewall firewall delete rule name="BlockGame_Out"', , "Hide"
-    RunWait 'netsh advfirewall firewall delete rule name="BlockGame_In"', , "Hide"
     RunWait '*RunAs "' pbPath '" unblockall', , "Hide"
     hwnd := WinExist("ahk_exe " gamefile)
     if !hwnd{
