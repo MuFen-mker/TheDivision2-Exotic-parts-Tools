@@ -17,6 +17,8 @@ global windowstite := "TheDivision2-Exotic-parts-Tools-1.5.6"
 global pbPath := A_ScriptDir "\EDRSilencer\EDRSilencer.exe"
 global stopLoop := false
 global TheDivision2Path := IniRead(A_ScriptDir "\config.ini", "Game", "TheDivision2Path", "")
+global steamGamePath := IniRead(A_ScriptDir "\config.ini", "Game", "SteamPath", "") ; 新增：读取Steam路径
+global commandLaunchMode := IniRead(A_ScriptDir "\config.ini", "Settings", "CommandLaunch", 0) ; 新增：读取命令启动模式
 ;检测网络连接
 global adapter := IniRead(A_ScriptDir "\config.ini", "Network", "Adapter", "")
 SplitPath(TheDivision2Path, &fileName)  ; 提取文件名
@@ -223,6 +225,12 @@ BrowseFile(*) {
     if selected != ""
         editPath.Value := selected
 }
+BrowseSteamFile(*) {
+    global editSteamPath
+    selected := FileSelect("3", , "选择 Steam版启动文件", "程序或快捷方式 (*.exe; *.lnk)")
+    if selected != ""
+        editSteamPath.Value := selected
+}
 
 RefreshAdapterList() {
     global comboAdapter, savedAdapter
@@ -353,7 +361,7 @@ OnWindowedModeClick(*) {
 }
 
 SaveCurrentConfig() {
-    global editPath, comboAdapter, configFile, TheDivision2Path, NetworkAdapter, gamefile, NetMethod, comboNetMethod,steamMode
+    global editPath, comboAdapter, configFile, TheDivision2Path, NetworkAdapter, gamefile, NetMethod, comboNetMethod, steamMode, editSteamPath, steamGamePath
     path := Trim(editPath.Value)
     ; 不再强制要求选择网卡
     ; adapter := Trim(comboAdapter.Text)
@@ -378,6 +386,21 @@ SaveCurrentConfig() {
     SplitPath(TheDivision2Path, &fileName)
     gamefile := fileName
     steamMode := chkSteamPreset.Value
+    ; 新增：读取命令启动状态
+    commandLaunchMode := chkCommandLaunch.Value
+
+    ; 新增：检查Steam模式下是否选择了路径（如果勾选了命令启动，则允许路径为空）
+    if (steamMode = 1 && commandLaunchMode = 0 && Trim(editSteamPath.Value) = "") {
+        MsgBox "您已勾选Steam版模式，请先选择启动路径，或者勾选“命令启动”！", "提示", 0x40
+        return false
+    }
+    
+    steamGamePath := Trim(editSteamPath.Value)
+
+    ; 保存配置到文件
+    IniWrite path, configFile, "Game", "TheDivision2Path"
+    IniWrite steamGamePath, configFile, "Game", "SteamPath" ; 新增：保存Steam路径
+    IniWrite commandLaunchMode ? 1 : 0, configFile, "Settings", "CommandLaunch" ; 新增：保存命令启动设置
 
     ; 保存配置到文件
     IniWrite path, configFile, "Game", "TheDivision2Path"
@@ -412,7 +435,7 @@ GuiClose(*) {
 }
 
 ; ========== GUI ==========
-global mainGui, editPath, comboAdapter, savedAdapter
+global mainGui, editPath, editSteamPath, chkCommandLaunch, comboAdapter, savedAdapter
 global TheDivision2Path, NetworkAdapter   ; 主脚本使用的全局变量
 
 mainGui := Gui()
@@ -452,13 +475,20 @@ SafeHousePreset.OnEvent("Change", SafeHouseListCallback)
 ;steam版选项
 chkSteamPreset := mainGui.Add("CheckBox", "x10 y330 w140 h30", "Steam版模式")
 chkSteamPreset.OnEvent("Click", OnSteamPresetClick)
+; 新增：Steam路径选择UI
+mainGui.Add("Text", "x10 y365 w100 h30", "游戏快捷方式：")
+editSteamPath := mainGui.Add("Edit", "x110 y360 w190 h25 ReadOnly")
+btnSteamBrowse := mainGui.Add("Button", "x310 y360 w60 h27", "浏览")
+btnSteamBrowse.OnEvent("Click", BrowseSteamFile)
+; 新增：命令启动多选框
+chkCommandLaunch := mainGui.Add("CheckBox", "x375 y360 w90 h30", "命令启动")
 
 ;自定义抓点参数
-chkUseCustom := mainGui.Add("CheckBox", "x10 y360 w140 h30", "使用自定义抓点参数")
+chkUseCustom := mainGui.Add("CheckBox", "x10 y400 w140 h30", "使用自定义抓点参数")
 chkUseCustom.OnEvent("Click", OnUseCustomClick)
-btnEditParams  := mainGui.Add("Button", "x150 y360 w100 h30", "自定义抓点参数")
+btnEditParams  := mainGui.Add("Button", "x150 y400 w100 h30", "自定义抓点参数")
 btnEditParams.OnEvent("Click", OpenParamEditor)
-mainGui.Add("Text", "x260 y365 w250 h30", "如果你不知道这是什么`n请不要勾选和修改")
+mainGui.Add("Text", "x260 y405 w250 h30", "如果你不知道这是什么`n请不要勾选和修改")
 
 
 ; 抓点函数：设置抓取目标控件
@@ -582,12 +612,12 @@ WriteAllParamsToIni() {
 }
 
 ; ========== 说明文本 ==========
-mainGui.Add("Text", "x10 y410 w480 h30", "网线和WIFI使用其中一个，保存后F10运行，F12强制停止程序，F5暂停并重启程序")
+mainGui.Add("Text", "x10 y445 w480 h30", "网线和WIFI使用其中一个，保存后F10运行，F12强制停止程序，F5暂停并重启程序")
 
 ; 关闭按钮
-btnCancel := mainGui.Add("Button", "x10 y440 w200 h40", "保存并关闭窗口")
+btnCancel := mainGui.Add("Button", "x10 y485 w200 h40", "保存并关闭窗口")
 
-btnSaveOnly := mainGui.Add("Button", "x220 y440 w100 h40", "保存")
+btnSaveOnly := mainGui.Add("Button", "x220 y485 w100 h40", "保存")
 btnSaveOnly.OnEvent("Click", (*) => SaveCurrentConfig())
 
 
@@ -620,6 +650,12 @@ if (savedPath = "" || !FileExist(savedPath)) {
 
 if savedPath
     editPath.Value := savedPath
+; 新增：加载保存的Steam路径并显示
+savedSteamPath := IniRead(configFile, "Game", "SteamPath", "")
+if savedSteamPath
+    editSteamPath.Value := savedSteamPath
+; 新增：加载命令启动勾选状态
+chkCommandLaunch.Value := commandLaunchMode
 
 savedAdapter := IniRead(configFile, "Network", "Adapter", "")
 RefreshAdapterList()   ; 填充网卡列表
@@ -902,6 +938,8 @@ reboot(){
     global numberOfErrors
     global netError
     global TheDivision2Path
+    global steamGamePath ; 新增
+    global commandLaunchMode ; 新增
     ;==== 导入取色参数 ====
     global Thefirstcharacter
     global advertisement
@@ -985,7 +1023,19 @@ reboot(){
         } else {
             ToolTip "开始运行游戏"
             SetTimer () => ToolTip(), -1500 
-            Run TheDivision2Path
+            
+            ; 新增：判断是否运行Steam版路径或协议命令
+            if (steamMode = 1) {
+                if (commandLaunchMode = 1) {
+                    ; 使用 AHK 的 Run 直接静默调用协议，不会弹出 Win+R 窗口
+                    Run "steam://rungameid/2221490"
+                } else if (steamGamePath != "") {
+                    Run steamGamePath
+                }
+            } else {
+                Run TheDivision2Path
+            }
+            
             found := true
         }
     }
