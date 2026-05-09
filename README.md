@@ -60,6 +60,8 @@ Windows缩放只在100%的情况下测试过，如果你有异常，可以修改
 右键TheDivision2-Exotic-parts-Tools.exe，以管理员身份运行
 
 初次启动设置好游戏路径，选择当前网络连接的网络适配器，保存并退出
+>steam版参考 [issue #7](https://github.com/MuFen-mker/TheDivision2-Exotic-parts-Tools/issues/7#issue-4403640661)
+>相关代码提供者 [771695775](https://github.com/771695775)
 
 切换到游戏选人界面，在程序UI角色预设对应的角色界面按下F10，程序开始运行
 
