@@ -1,3 +1,5 @@
+[2026年5月12日更新，育碧已修复此方法，该程序已失效]
+
 # -------------   全境封锁2奇特零件自动化工具   -------------
 ## [下载TheDivision2-Exotic-parts-Tools.exe](https://github.com/MuFen-mker/TheDivision2-Exotic-parts-Tools/releases)
 
